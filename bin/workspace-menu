@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Workspace overview: one row per workspace listing the apps on it.
+# Terminals show their working directory, browsers show the page title.
+# Choosing a row switches to that workspace.
+
+set -euo pipefail
+
+# Working directory of the shell running in a terminal window (by window pid).
+terminal_cwd() {
+  local pid=$1 child cwd
+  child=$(cat /proc/"$pid"/task/*/children 2>/dev/null | awk '{print $1}' | head -n1)
+  cwd=$(readlink "/proc/${child:-$pid}/cwd" 2>/dev/null) || return 1
+  echo "${cwd/#$HOME/\~}"
+}
+
+describe() {
+  local class=$1 title=$2 pid=$3 lc
+  lc=${class,,}
+  case "$lc" in
+    foot|footclient|alacritty|kitty|ghostty|org.omarchy.terminal|xterm*|org.gnome.terminal)
+      echo "Terminal $(terminal_cwd "$pid" || echo "$title")"
+      ;;
+    chromium|google-chrome*|brave-browser|firefox|zen*|vivaldi*)
+      title=${title% - Chromium}; title=${title% - Google Chrome}; title=${title% — Mozilla Firefox}
+      echo "${class^}: ${title:0:50}"
+      ;;
+    *)
+      # Web apps and everything else: class, plus the title if it adds info
+      if [[ -n $title && ${title,,} != "$lc" ]]; then
+        echo "${class^}: ${title:0:40}"
+      else
+        echo "${class^}"
+      fi
+      ;;
+  esac
+}
+
+active=$(hyprctl activeworkspace -j | jq -r '.id')
+
+declare -A rows
+while IFS=$'\t' read -r ws class title pid; do
+  entry=$(describe "$class" "$title" "$pid")
+  rows[$ws]+="${rows[$ws]:+  ·  }$entry"
+done < <(hyprctl clients -j | jq -r '.[] | select(.mapped and .workspace.id > 0) | [.workspace.id, .class, .title, .pid] | @tsv')
+
+# Always show the current workspace, even if empty
+[[ -n ${rows[$active]+x} ]] || rows[$active]="(empty)"
+
+options=()
+for ws in $(printf '%s\n' "${!rows[@]}" | sort -n); do
+  icon="󰍹"
+  [[ $ws == "$active" ]] && icon="󰄬"
+  options+=("$icon"$'\t'"$ws  ${rows[$ws]}")
+done
+
+choice=$(omarchy-menu-select "Workspaces" "${options[@]}" -- --width 900) || exit 0
+target=${choice%% *}
+
+[[ $target =~ ^[0-9]+$ ]] && hyprctl dispatch "hl.dsp.focus({ workspace = \"$target\" })"

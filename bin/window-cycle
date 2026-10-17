@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Alt+Tab across all workspaces, most-recently-used first.
+#   window-cycle next|prev   one Tab press (Shift+Tab for prev)
+#   window-cycle reset       Alt released: end the current cycle
+#
+# The first press snapshots the MRU list and jumps to the previous window, so
+# a quick Alt+Tab toggles between your last two windows. While Alt stays held,
+# further presses walk deeper into the snapshot. The state also expires on its
+# own after 10s as a safety net.
+
+set -euo pipefail
+
+dir=${1:-next}
+state=${XDG_RUNTIME_DIR:-/tmp}/window-cycle.state
+ttl_ms=10000
+
+if [[ $dir == reset* ]]; then
+  rm -f "$state"
+  exit 0
+fi
+
+now=$(( $(date +%s%N) / 1000000 ))
+index=0
+list=()
+
+if [[ -f $state ]]; then
+  read -r stamp index <"$state"
+  if (( now - stamp <= ttl_ms )); then
+    mapfile -t list < <(tail -n +2 "$state")
+  fi
+fi
+
+if (( ${#list[@]} == 0 )); then
+  mapfile -t list < <(hyprctl clients -j | jq -r '[.[] | select(.mapped and .workspace.id > 0)]
+    | sort_by(.focusHistoryID) | .[].address')
+  index=0
+fi
+
+count=${#list[@]}
+(( count > 1 )) || exit 0
+
+if [[ $dir == prev ]]; then
+  index=$(( (index - 1 + count) % count ))
+else
+  index=$(( (index + 1) % count ))
+fi
+
+{ echo "$now $index"; printf '%s\n' "${list[@]}"; } >"$state"
+
+hyprctl dispatch "hl.dsp.focus({ window = \"address:${list[index]}\" })" >/dev/null
+hyprctl dispatch "hl.dsp.window.bring_to_top()" >/dev/null
