@@ -22,3 +22,16 @@ done
 for file in "$repo"/config/hypr/*.lua; do
   link "$file" "$HOME/.config/hypr/$(basename "$file")"
 done
+
+for plugin in "$repo"/config/omarchy/plugins/*/; do
+  plugin=${plugin%/}
+  link "$plugin" "$HOME/.config/omarchy/plugins/$(basename "$plugin")"
+done
+
+for unit in "$repo"/config/systemd/user/*; do
+  link "$unit" "$HOME/.config/systemd/user/$(basename "$unit")"
+done
+systemctl --user daemon-reload
+systemctl --user enable --now screensaver-phrase.timer
+omarchy-shell -q shell rescanPlugins
+omarchy plugin enable jalmeida.window-switcher >/dev/null 2>&1 || true
