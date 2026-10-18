@@ -65,3 +65,19 @@ hl.unbind("ALT + TAB")
 hl.unbind("ALT + SHIFT + TAB")
 o.bind("ALT + TAB", "Focus next window (all workspaces, MRU)", cycle("next"))
 o.bind("ALT + SHIFT + TAB", "Focus previous window (all workspaces, MRU)", cycle("prev"))
+
+-- Pixelbook has no Delete key: use Super+Backspace (replaces Omarchy's window
+-- transparency toggle). Sent as an explicit key down/up (same approach as
+-- Omarchy's universal clipboard) so the held Super doesn't leak into it.
+local function send_delete()
+  hl.dispatch(hl.dsp.send_key_state({ mods = "", key = "Delete", state = "down" }))
+  hl.timer(function()
+    hl.dispatch(hl.dsp.send_key_state({ mods = "", key = "Delete", state = "up" }))
+  end, { timeout = 50, type = "oneshot" })
+end
+
+hl.unbind("SUPER + BACKSPACE")
+o.bind("SUPER + BACKSPACE", "Delete", send_delete)
+
+-- Ctrl+Alt+Delete equivalent: Omarchy's "Close all windows"
+o.bind("SUPER + CTRL + ALT + BACKSPACE", "Close all windows", "omarchy-hyprland-window-close-all")
