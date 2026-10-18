@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Write a random silly programmer phrase, in big ASCII letters, to the Omarchy
+# screensaver text. The screensaver re-reads the file before every effect, so
+# running this on a timer (screensaver-phrase.timer) rotates the phrase.
+
+set -euo pipefail
+
+out=~/.config/omarchy/branding/screensaver.txt
+
+phrases=(
+  "WORKS ON MY MACHINE"
+  "IT'S NOT A BUG, IT'S A FEATURE"
+  "HAVE YOU TRIED TURNING IT OFF AND ON AGAIN"
+  "IT'S ALWAYS DNS"
+  "LGTM"
+  "SHIP IT"
+  "TODO: FIX LATER"
+  "NO ONE TOUCH PROD"
+  "COMPILING..."
+  "404 DEVELOPER NOT FOUND"
+  "GIT PUSH --FORCE"
+  "THERE ARE NO TESTS ONLY PRAYERS"
+  "THIS SHOULD NEVER HAPPEN"
+  "WONTFIX"
+  "RUBBER DUCK ON BREAK"
+  "OFF BY ONE ERRORS"
+  "DEPLOYING ON A FRIDAY"
+  "SEGMENTATION FAULT (CORE DUMPED)"
+  "IT COMPILES SHIP IT"
+  "RTFM"
+  "CACHE INVALIDATION IS HARD"
+  "SUDO MAKE ME A SANDWICH"
+)
+
+phrase=${phrases[RANDOM % ${#phrases[@]}]}
+
+# Big block letters via pyfiglet (user venv, no sudo needed); long phrases
+# that would run off the screen fall back to a smaller font.
+pyfiglet=~/.local/share/pyfiglet/bin/python
+render() { "$pyfiglet" -m pyfiglet -f "$1" -w 80 -j center -s -- "$phrase"; }
+
+if [[ -x $pyfiglet ]]; then
+  art=$(render ansi_shadow)
+  (( $(wc -l <<<"$art") <= 28 )) || art=$(render standard)
+else
+  art=$phrase
+fi
+
+# Write atomically so the screensaver never reads a half-written file
+tmp=$(mktemp "$out.XXXXXX")
+printf '%s\n' "$art" >"$tmp"
+mv -f "$tmp" "$out"

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Replace the OMARCHY logo on the boot (disk unlock) and SDDM login screens
+# with this machine's hostname in block ASCII art. Uses Omarchy's own
+# `omarchy plymouth set`, which asks for sudo and rebuilds the initramfs.
+# The PNG is sized to fit the stock 800x188 logo, which Plymouth shows unscaled.
+#   hostname-logo           install the logo
+#   hostname-logo --preview only render the PNG and print its path
+
+set -euo pipefail
+
+bg="#1a1b26"   # Omarchy's default boot screen colors
+fg="#ffffff"
+font="JetBrainsMono-NF-Bold"
+logo=${XDG_CACHE_HOME:-$HOME/.cache}/hostname-logo.png
+
+pyfiglet=~/.local/share/pyfiglet/bin/python
+[[ -x $pyfiglet ]] || { echo "pyfiglet missing: python3 -m venv ~/.local/share/pyfiglet && ~/.local/share/pyfiglet/bin/pip install pyfiglet" >&2; exit 1; }
+
+mkdir -p "$(dirname "$logo")"
+"$pyfiglet" -m pyfiglet -f ansi_shadow -w 200 -s -- "$(hostnamectl hostname)" |
+  magick -background none -fill "$fg" -font "$font" -pointsize 40 -interline-spacing -6 label:@- -trim +repage -resize 800x188 "$logo"
+
+if [[ ${1:-} == --preview ]]; then
+  echo "$logo"
+else
+  omarchy plymouth set "$bg" "$fg" "$logo"
+fi

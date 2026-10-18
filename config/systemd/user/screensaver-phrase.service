@@ -1,0 +1,6 @@
+[Unit]
+Description=Pick a new screensaver phrase
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/screensaver-phrase

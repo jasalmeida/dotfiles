@@ -1,0 +1,10 @@
+[Unit]
+Description=Rotate the screensaver phrase
+
+[Timer]
+OnStartupSec=10s
+OnUnitActiveSec=20s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
