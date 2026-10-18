@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "jalmeida.window-switcher",
+  "name": "Window switcher",
+  "version": "1.0.0",
+  "author": "jalmeida",
+  "description": "Alt+Tab overlay showing every window's icon, most recently used first. Driven by ~/.local/bin/window-cycle.",
+  "kinds": ["panel"],
+  "keepLoaded": true,
+  "entryPoints": { "panel": "Switcher.qml" }
+}
