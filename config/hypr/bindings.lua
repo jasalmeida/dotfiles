@@ -34,37 +34,11 @@ local bin_dir = (os.getenv("HOME") or "") .. "/.local/bin"
 -- Workspace overview menu (like Cmd-. on macOS)
 o.bind("SUPER + PERIOD", "Workspace overview", bin_dir .. "/workspace-menu")
 
--- Alt+Tab across all workspaces, most recently used first. Hyprland doesn't
--- deliver the Alt release once Tab has been pressed, so poll whether Alt is
--- still held and end the cycle (next press starts a fresh MRU list) when not.
-local window_cycle = bin_dir .. "/window-cycle"
-
-local function alt_held()
-  local ok_l, left = pcall(hl.is_key_down, "Alt_L")
-  local ok_r, right = pcall(hl.is_key_down, "Alt_R")
-  return (ok_l and left) or (ok_r and right)
-end
-
-local alt_poll
-alt_poll = hl.timer(function()
-  if not alt_held() then
-    alt_poll:set_enabled(false)
-    hl.exec_cmd(window_cycle .. " reset")
-  end
-end, { timeout = 30, type = "repeat" })
-alt_poll:set_enabled(false)
-
-local function cycle(direction)
-  return function()
-    hl.exec_cmd(window_cycle .. " " .. direction)
-    alt_poll:set_enabled(true)
-  end
-end
-
+-- Alt+Tab is handled by hyprshell (config/hyprshell/config.ron). Free the key
+-- from Omarchy's default window cycling so hyprshell can use it. The previous
+-- keyboard-only switcher is still in bin/window-cycle.
 hl.unbind("ALT + TAB")
 hl.unbind("ALT + SHIFT + TAB")
-o.bind("ALT + TAB", "Focus next window (all workspaces, MRU)", cycle("next"))
-o.bind("ALT + SHIFT + TAB", "Focus previous window (all workspaces, MRU)", cycle("prev"))
 
 -- Pixelbook has no Delete key: use Super+Backspace (replaces Omarchy's window
 -- transparency toggle). Sent as an explicit key down/up (same approach as
