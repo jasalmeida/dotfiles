@@ -55,3 +55,8 @@ o.bind("SUPER + BACKSPACE", "Delete", send_delete)
 
 -- Ctrl+Alt+Delete equivalent: Omarchy's "Close all windows"
 o.bind("SUPER + CTRL + ALT + BACKSPACE", "Close all windows", "omarchy-hyprland-window-close-all")
+
+-- Pixelbook has no keyboard backlight keys: use Super + the screen brightness
+-- keys (Alt is already Omarchy's "precise" screen brightness step).
+o.bind("SUPER + XF86MonBrightnessUp", "Keyboard brightness up", "omarchy-brightness-keyboard up", { locked = true, repeating = true })
+o.bind("SUPER + XF86MonBrightnessDown", "Keyboard brightness down", "omarchy-brightness-keyboard down", { locked = true, repeating = true })
