@@ -20,6 +20,7 @@ require("hypr.monitors")
 require("hypr.gpu")
 require("hypr.input")
 require("hypr.bindings")
+require("hypr.pixelbook")
 require("hypr.looknfeel")
 require("hypr.autostart")
 

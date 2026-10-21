@@ -39,24 +39,3 @@ o.bind("SUPER + PERIOD", "Workspace overview", bin_dir .. "/workspace-menu")
 -- keyboard-only switcher is still in bin/window-cycle.
 hl.unbind("ALT + TAB")
 hl.unbind("ALT + SHIFT + TAB")
-
--- Pixelbook has no Delete key: use Super+Backspace (replaces Omarchy's window
--- transparency toggle). Sent as an explicit key down/up (same approach as
--- Omarchy's universal clipboard) so the held Super doesn't leak into it.
-local function send_delete()
-  hl.dispatch(hl.dsp.send_key_state({ mods = "", key = "Delete", state = "down" }))
-  hl.timer(function()
-    hl.dispatch(hl.dsp.send_key_state({ mods = "", key = "Delete", state = "up" }))
-  end, { timeout = 50, type = "oneshot" })
-end
-
-hl.unbind("SUPER + BACKSPACE")
-o.bind("SUPER + BACKSPACE", "Delete", send_delete)
-
--- Ctrl+Alt+Delete equivalent: Omarchy's "Close all windows"
-o.bind("SUPER + CTRL + ALT + BACKSPACE", "Close all windows", "omarchy-hyprland-window-close-all")
-
--- Pixelbook has no keyboard backlight keys: use Super + the screen brightness
--- keys (Alt is already Omarchy's "precise" screen brightness step).
-o.bind("SUPER + XF86MonBrightnessUp", "Keyboard brightness up", "omarchy-brightness-keyboard up", { locked = true, repeating = true })
-o.bind("SUPER + XF86MonBrightnessDown", "Keyboard brightness down", "omarchy-brightness-keyboard down", { locked = true, repeating = true })

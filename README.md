@@ -34,9 +34,12 @@ Both use pyfiglet in its own venv (no sudo needed):
 
 - **`bindings.lua`**: Super+. binding, and frees Alt+Tab from Omarchy's defaults for
   hyprshell. Uses Omarchy's `o.bind` helper (plain Hyprland would use `hl.bind`).
-- **`bindings.lua`** also gives the Pixelbook a Delete key: Super+Backspace sends Delete
-  (replacing Omarchy's transparency toggle) and Super+Ctrl+Alt+Backspace runs Omarchy's
-  Ctrl+Alt+Delete action, "Close all windows".
+- **`pixelbook.lua`**: keyboard workarounds that only load on a Pixelbook (DMI product
+  "Eve"), like `gpu.lua` only acting on hybrid GPUs. Super+Backspace sends Delete
+  (replacing Omarchy's transparency toggle), Super+Ctrl+Alt+Backspace is Ctrl+Alt+Delete
+  ("Close all windows"), Super+top-row keys act as brightness/media/volume (the keys stay
+  F1-F10 on their own), and the hamburger key (F13) opens the Omarchy menu. Needs the
+  Assistant key remapped to Super by a udev hwdb rule, which isn't tracked here.
 - **`input.lua`**: natural (macOS-style) touchpad scrolling.
 - **`looknfeel.lua`**: no gaps between or around windows.
 
