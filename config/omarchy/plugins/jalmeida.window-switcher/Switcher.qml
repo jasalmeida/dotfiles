@@ -55,6 +55,11 @@ Item {
     opened = false
   }
 
+  // For scripts: omarchy-shell shell call jalmeida.window-switcher state x
+  function state() {
+    return wanted ? "open" : "closed"
+  }
+
   Timer {
     id: showDelay
     interval: 120

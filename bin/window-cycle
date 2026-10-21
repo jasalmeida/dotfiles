@@ -24,6 +24,12 @@ state=${XDG_RUNTIME_DIR:-/tmp}/window-cycle.state
 visited=$state.visited
 windows=$state.windows
 switcher=jalmeida.window-switcher
+
+# One run at a time. A Tab press (focus + summon the overlay) takes ~100ms, so
+# releasing Alt can start the reset while a press is still running; unserialized,
+# its hide could land before that press's summon and leave the overlay up.
+exec 9>"$state.lock"
+flock 9
 ttl_ms=10000
 
 focus_cmd() { echo "dispatch hl.dsp.focus({ window = \"address:$1\" })"; }
