@@ -1,0 +1,37 @@
+#!/bin/bash
+# Symlink these dotfiles into place. Existing files are moved to *.bak.
+set -euo pipefail
+
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+link() {
+  local src=$1 dest=$2
+  mkdir -p "$(dirname "$dest")"
+  if [[ -e $dest && ! -L $dest ]]; then
+    mv "$dest" "$dest.bak"
+    echo "backed up $dest -> $dest.bak"
+  fi
+  ln -sfn "$src" "$dest"
+  echo "linked $dest"
+}
+
+for script in "$repo"/bin/*; do
+  link "$script" "$HOME/.local/bin/$(basename "$script")"
+done
+
+for file in "$repo"/config/hypr/*.lua; do
+  link "$file" "$HOME/.config/hypr/$(basename "$file")"
+done
+
+for unit in "$repo"/config/systemd/user/*; do
+  link "$unit" "$HOME/.config/systemd/user/$(basename "$unit")"
+done
+systemctl --user daemon-reload
+systemctl --user enable --now screensaver-phrase.timer
+
+link "$repo/config/hyprshell/config.ron" "$HOME/.config/hyprshell/config.ron"
+
+# hyprshell (Alt+Tab switcher) runs as a user service; the package ships the unit.
+if command -v hyprshell >/dev/null; then
+  systemctl --user enable hyprshell.service
+fi
