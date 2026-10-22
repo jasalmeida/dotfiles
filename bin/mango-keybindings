@@ -5,8 +5,10 @@ Follows source = includes, reads #"Description" from the end of a bind and
 section names from short comment lines like "# Windows".
 
   mango-keybindings            JSON: {"files": [...], "rows": [{title, keys, section, dispatch}]}
-  mango-keybindings --columns  one line per binding, keys padded into a column,
-                               then a tab and the mmsg dispatch ("" if none)
+  mango-keybindings --columns  one line per binding, sorted by key (letters,
+                               digits, F-keys, other keys, media, mouse), keys
+                               padded into a column, then a tab and the mmsg
+                               dispatch ("" if none)
 """
 
 import json
@@ -120,6 +122,27 @@ def merge_digit_runs(rows):
     return out
 
 
+def key_order(row):
+    """Sort by the key itself, then by how many modifiers: letters, digits,
+    F-keys, other named keys, media keys, mouse buttons."""
+    key = row["key"].strip()
+    label = key_label(key)
+    mods = [m for m in row["mods"].split("+") if m.strip().upper() in MODS]
+    if len(label) == 1 and label.isalpha():
+        group, name = 0, label
+    elif key.isdigit():
+        group, name = 1, key
+    elif re.fullmatch(r"[Ff]\d+", key):
+        group, name = 2, f"{int(key[1:]):03d}"
+    elif key.startswith("btn_"):
+        group, name = 5, label
+    elif key.startswith("XF86") or key.startswith("code:191"):
+        group, name = 4, label
+    else:
+        group, name = 3, label
+    return (group, name, len(mods), row["keys"])
+
+
 def main():
     args = sys.argv[1:]
     columns = "--columns" in args
@@ -128,10 +151,10 @@ def main():
 
     rows, files = [], []
     parse_file(config, rows, files)
-    rows = [
-        {k: r[k] for k in ("title", "keys", "section", "dispatch")}
-        for r in merge_digit_runs(rows)
-    ]
+    rows = merge_digit_runs(rows)
+    if columns:
+        rows.sort(key=key_order)  # the menu is for finding a key
+    rows = [{k: r[k] for k in ("title", "keys", "section", "dispatch")} for r in rows]
 
     if columns:
         width = max((len(r["keys"]) for r in rows), default=0) + 3

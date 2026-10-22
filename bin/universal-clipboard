@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Omarchy-style Super+C/V/X/A that work everywhere: copy and paste send
+# Ctrl+Shift+C/V in terminals (where Ctrl+C interrupts) and Ctrl+C/V
+# elsewhere; cut and select all are Ctrl+X/A. wtype types through its own
+# virtual keyboard, so the held Super doesn't reach the app.
+#   universal-clipboard copy|paste|cut|select-all
+
+set -euo pipefail
+
+case ${1:-} in
+  copy) key=c ;;
+  paste) key=v ;;
+  cut) key=x ;;
+  select-all) key=a ;;
+  *) echo "usage: universal-clipboard copy|paste|cut|select-all" >&2; exit 1 ;;
+esac
+
+app=$(mmsg get focusing-client | jq -r '.appid // ""')
+case ${app,,} in
+  alacritty|kitty|foot|footclient|*ghostty|org.wezfurlong.wezterm|org.gnome.ptyxis|org.kde.konsole|xterm*)
+    terminal=true ;;
+  *)
+    terminal=false ;;
+esac
+
+if $terminal && [[ $key == [cv] ]]; then
+  wtype -M ctrl -M shift "$key" -m shift -m ctrl
+else
+  wtype -M ctrl "$key" -m ctrl
+fi
