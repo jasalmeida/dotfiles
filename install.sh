@@ -19,19 +19,26 @@ for script in "$repo"/bin/*; do
   link "$script" "$HOME/.local/bin/$(basename "$script")"
 done
 
-for file in "$repo"/config/hypr/*.lua; do
-  link "$file" "$HOME/.config/hypr/$(basename "$file")"
+link "$repo/config/mango/config.conf" "$HOME/.config/mango/config.conf"
+for file in "$repo"/config/mango/cfg/*.conf; do
+  link "$file" "$HOME/.config/mango/cfg/$(basename "$file")"
 done
 
-for unit in "$repo"/config/systemd/user/*; do
-  link "$unit" "$HOME/.config/systemd/user/$(basename "$unit")"
-done
-systemctl --user daemon-reload
-systemctl --user enable --now screensaver-phrase.timer
+link "$repo/config/fuzzel/fuzzel.ini" "$HOME/.config/fuzzel/fuzzel.ini"
 
-link "$repo/config/hyprshell/config.ron" "$HOME/.config/hyprshell/config.ron"
-
-# hyprshell (Alt+Tab switcher) runs as a user service; the package ships the unit.
-if command -v hyprshell >/dev/null; then
-  systemctl --user enable hyprshell.service
+# Pixelbook: the Assistant key (between Ctrl and Alt) becomes Super. Copied, not
+# linked: udev reads /etc before any user is logged in.
+if [[ $(cat /sys/class/dmi/id/product_name 2>/dev/null) == Eve ]]; then
+  hwdb=/etc/udev/hwdb.d/61-pixelbook-super.hwdb
+  if ! cmp -s "$repo/etc/udev/hwdb.d/61-pixelbook-super.hwdb" "$hwdb"; then
+    sudo install -Dm644 "$repo/etc/udev/hwdb.d/61-pixelbook-super.hwdb" "$hwdb"
+    sudo systemd-hwdb update
+    sudo udevadm trigger --sysname-match="event*"
+    echo "installed $hwdb"
+  fi
 fi
+
+echo
+echo "Noctalia plugins: in Noctalia settings (Super+Shift+S) > Plugins, add a"
+echo "source of kind \"path\" at $repo/config/noctalia/plugins, then enable"
+echo "Workspace HUD."

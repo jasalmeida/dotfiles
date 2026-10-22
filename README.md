@@ -1,60 +1,77 @@
 # dotfiles
 
-Personal Hyprland setup, written for [Omarchy](https://omarchy.org).
+Personal [mango](https://github.com/mangowm/mango) (mangowc) setup on CachyOS, with the
+Noctalia shell, tuned to feel like Omarchy and macOS.
 
 Run `./install.sh` to symlink everything into place (existing files are kept as `*.bak`).
+It also installs the Pixelbook keyboard fix on a Pixelbook, and says how to add the
+Noctalia plugin.
+
+Needs `mango`, `noctalia`, `fuzzel`, `jq` and `python3`.
+
+The earlier Omarchy/Hyprland setup is kept, untouched, in
+[`archive/omarchy-hyprland/`](archive/omarchy-hyprland/).
+
+## Keys worth knowing
+
+Super+K lists every binding (see `keybindings-menu` below). The highlights:
+
+| Keys | Does |
+| --- | --- |
+| Super+Space | App launcher (fuzzel); Super+Alt+Space is Noctalia's launcher |
+| Super+K | Keybindings |
+| Super+. | Workspace HUD |
+| Super+W | Close window |
+| Super+Return / Super+Shift+Return | Terminal / browser |
+| Alt+Tab | mango's thumbnail switcher, most recently used first, across all workspaces |
+| Alt+\` | Next window of the same app |
+| Super+Tab / Super+Shift+Tab | Next / previous workspace that has windows, wrapping around |
+| Super+/ | Flip the split between side-by-side and stacked |
+
+## mango (`config/mango/` → `~/.config/mango`)
+
+- **`keybinds.conf`**: every bind ends in `#"Description"`, and short comment lines
+  (`# Windows`) start sections; `keybindings-menu` reads both.
+- **`env.conf`**: puts `~/.local/bin` on `PATH` for binds, since mango starts with a bare
+  system `PATH`.
+- **`layout.conf`**: dwindle on every workspace; `tag_carousel` makes Super+Tab wrap.
+- **`appearance.conf`**: no gaps. **`input.conf`**: natural trackpad scrolling.
 
 ## Scripts (`bin/` → `~/.local/bin`)
 
-- **`window-cycle`**: Alt+Tab across every workspace, most recently used first. No longer bound
-  (hyprshell replaced it), kept as an unused fallback together with the shell plugin below.
-  Needs Hyprland, `hyprctl` and `jq`; the icon overlay also needs the plugin enabled.
-- **`workspace-menu`**: Super+. overview, one row per workspace listing its apps (terminals
-  show their directory, browsers the page title). Picking a row switches to it. Uses
-  Omarchy's `omarchy-menu-select`; on other setups swap in fuzzel/wofi/rofi.
-- **`screensaver-phrase`**: writes a random silly programmer phrase ("WORKS ON MY MACHINE")
-  in big block letters to the Omarchy screensaver text. `screensaver-phrase.timer` runs it
-  every 20s, and the screensaver re-reads the file before each effect.
-- **`hostname-logo`**: replaces the OMARCHY logo on the disk-unlock (Plymouth) and SDDM
-  screens with the hostname in block letters, via `omarchy plymouth set` (asks for sudo).
-  `--preview` only renders the PNG. Undo with `omarchy refresh plymouth`.
+- **`keybindings-menu`**: Super+K. Keys on the left, what they do on the right, in fuzzel;
+  Enter runs the binding. Read from the config every time, so edits show up at once.
+- **`mango-keybindings`**: the parser behind it. Follows `source =` includes, prints JSON,
+  or `--columns` for the menu.
+- **`app-window-cycle`**: Alt+\` / Alt+Shift+\`, like macOS's Cmd+\`. Windows of the
+  focused app cycle in opening order, on any workspace.
+- **`fuzzel-themed`**: fuzzel in Noctalia's current colors, read from the GTK 4 palette
+  Noctalia rewrites on every theme or wallpaper change.
+- **`mango-workspace-menu`**: text version of the workspace overview, one fuzzel row per
+  workspace (terminals show their directory, browsers the page title). Not bound.
 
-Both use pyfiglet in its own venv (no sudo needed):
-`python3 -m venv ~/.local/share/pyfiglet && ~/.local/share/pyfiglet/bin/pip install pyfiglet`
+`focusid` needs its target as `mmsg dispatch focusid client,<id>`; `focusid,<id>`
+is accepted and silently does nothing.
 
-## Omarchy shell plugin (`config/omarchy/plugins/`, currently unused)
+## Noctalia plugin (`config/noctalia/plugins/`)
 
-- **`jalmeida.window-switcher`**: the Alt+Tab overlay, a row of window icons with the
-  selection highlighted. A layer-shell panel, so Hyprland never tiles it, and it takes no
-  focus or clicks. Summoned by `window-cycle` on each Tab and hidden when Alt is released;
-  it only appears once Alt is held for 120ms. It's kept loaded, so QML edits need
-  `omarchy restart shell`.
+Added in Noctalia as a plugin source of kind `path` pointing at this folder.
 
-## Hyprland config (`config/hypr/` → `~/.config/hypr`)
+- **`workspace-hud`**: Super+., an [aerohud](https://github.com/nikhilmwarrier/aerohud)-style
+  3x3 grid of workspace cards listing each one's windows. Arrows + Enter, a click, or 1-9 go
+  to a workspace; click a window to focus it; drag a window's icon onto another card to
+  move it there.
 
-- **`bindings.lua`**: Super+. binding, and frees Alt+Tab from Omarchy's defaults for
-  hyprshell. Uses Omarchy's `o.bind` helper (plain Hyprland would use `hl.bind`).
-- **`pixelbook.lua`**: keyboard workarounds that only load on a Pixelbook (DMI product
-  "Eve"), like `gpu.lua` only acting on hybrid GPUs. Super+Backspace sends Delete
-  (replacing Omarchy's transparency toggle), Super+Ctrl+Alt+Backspace is Ctrl+Alt+Delete
-  ("Close all windows"), Super+top-row keys act as brightness/media/volume (the keys stay
-  F1-F10 on their own), and the hamburger key (F13) opens the Omarchy menu. Needs the
-  Assistant key remapped to Super by a udev hwdb rule, which isn't tracked here.
-- **`input.lua`**: natural (macOS-style) touchpad scrolling.
-- **`looknfeel.lua`**: no gaps between or around windows.
+Noctalia gives each plugin callback a small CPU budget, so heavy work (parsing configs,
+drawing long lists) has to happen elsewhere; that's why the keybindings list is a script.
 
-## systemd user units (`config/systemd/user/` → `~/.config/systemd/user`)
+## fuzzel (`config/fuzzel/` → `~/.config/fuzzel`)
 
-- **`screensaver-phrase.timer`**: rotates the screensaver phrase. `install.sh` enables it.
+Monospace (so the keybindings columns line up), larger text, rounded border. Colors come
+from `fuzzel-themed`.
 
-Requires a Hyprland with Lua config support.
+## Pixelbook (`etc/udev/hwdb.d/`)
 
-## hyprshell (`config/hyprshell/` → `~/.config/hyprshell`)
-
-Alt+Tab window switcher with icons, most recently used first (AUR: `hyprshell-bin`).
-`install.sh` links `config.ron` and enables the `hyprshell.service` user unit.
-
-## Shell
-
-`~/.bashrc` also overrides `try` to use `~/workspace/tries` instead of Omarchy's `~/Work/tries`
-(not tracked here).
+**`61-pixelbook-super.hwdb`** turns the Assistant key (between Ctrl and Alt) into Super.
+systemd maps it to KEY_ASSISTANT, which no compositor keymap can see. `install.sh`
+copies it to `/etc` on a Pixelbook (DMI product "Eve").

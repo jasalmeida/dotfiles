@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Alt+` on mango: focus the next window of the focused app, on any workspace,
+# like macOS's Cmd+`. Windows cycle in a stable (creation) order and wrap around.
+#   app-window-cycle [next|prev]
+# Needs mango's mmsg and jq.
+
+set -euo pipefail
+
+dir=${1:-next}
+
+focused=$(mmsg get focusing-client)
+appid=$(jq -r '.appid // empty' <<<"$focused")
+id=$(jq -r '.id // empty' <<<"$focused")
+[[ -n $appid && -n $id ]] || exit 0
+
+mapfile -t ids < <(mmsg get all-clients | jq -r --arg app "$appid" '
+  .clients
+  | map(select(.appid == $app and (.is_minimized | not) and (.is_scratchpad | not)))
+  | sort_by(.id) | .[].id')
+n=${#ids[@]}
+(( n > 1 )) || exit 0
+
+for (( i = 0; i < n; i++ )); do
+  [[ ${ids[i]} == "$id" ]] && break
+done
+
+if [[ $dir == prev ]]; then
+  target=${ids[(i - 1 + n) % n]}
+else
+  target=${ids[(i + 1) % n]}
+fi
+
+mmsg dispatch focusid "client,$target" >/dev/null

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Super+. on mango: one row per workspace listing the apps on it. Terminals
+# show their working directory, browsers the page title. Choosing a row
+# switches to that workspace. (workspace-menu is the Hyprland version.)
+
+set -euo pipefail
+
+# Working directory of the shell running in a terminal window (by window pid).
+terminal_cwd() {
+  local pid=$1 child cwd
+  child=$(cat /proc/"$pid"/task/*/children 2>/dev/null | awk '{print $1}' | head -n1)
+  cwd=$(readlink "/proc/${child:-$pid}/cwd" 2>/dev/null) || return 1
+  echo "${cwd/#$HOME/\~}"
+}
+
+describe() {
+  local app=$1 title=$2 pid=$3 lc
+  lc=${app,,}
+  case "$lc" in
+    foot|footclient|alacritty|kitty|ghostty|xterm*|org.gnome.terminal|org.wezfurlong.wezterm)
+      echo "Terminal $(terminal_cwd "$pid" || echo "$title")"
+      ;;
+    chromium|google-chrome*|brave-browser|firefox|zen*|vivaldi*)
+      title=${title% - Chromium}; title=${title% - Google Chrome}; title=${title% — Mozilla Firefox}
+      echo "${app^}: ${title:0:50}"
+      ;;
+    *)
+      # Everything else: app id, plus the title if it adds info
+      if [[ -n $title && ${title,,} != "$lc" ]]; then
+        echo "${app^}: ${title:0:40}"
+      else
+        echo "${app^}"
+      fi
+      ;;
+  esac
+}
+
+active=$(mmsg get all-tags | jq -r '[.all_tags[].tags[] | select(.is_active) | .index][0] // 1')
+
+declare -A rows
+while IFS=$'\t' read -r ws app title pid; do
+  entry=$(describe "$app" "$title" "$pid")
+  rows[$ws]+="${rows[$ws]:+  ·  }$entry"
+done < <(mmsg get all-clients | jq -r '.clients[] | select(.is_scratchpad | not) | .tags[] as $t | [$t, .appid, .title, .pid] | @tsv')
+
+# Always show the current workspace, even if empty
+[[ -n ${rows[$active]+x} ]] || rows[$active]="(empty)"
+
+options=()
+for ws in $(printf '%s\n' "${!rows[@]}" | sort -n); do
+  mark=" "
+  [[ $ws == "$active" ]] && mark="●"
+  options+=("$mark $ws   ${rows[$ws]}")
+done
+
+choice=$(printf '%s\n' "${options[@]}" |
+  fuzzel-themed --dmenu --prompt "Workspaces  " --width 120 --lines "${#options[@]}") || exit 0
+target=$(awk '{print $2}' <<<"$choice")
+
+[[ $target =~ ^[0-9]+$ ]] && mmsg dispatch "view,$target,0" >/dev/null

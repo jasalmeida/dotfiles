@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Super+K: mango's keybindings, keys on the left and what they do on the right.
+# Read from the config on every run, so edits show up straight away. Enter
+# runs the chosen binding.
+
+set -euo pipefail
+
+mapfile -t rows < <(mango-keybindings --columns)
+(( ${#rows[@]} )) || exit 0
+
+index=$(printf '%s\n' "${rows[@]}" | cut -f1 |
+  fuzzel-themed --dmenu --index --prompt "Keybindings  " --width 90 --lines 24) || exit 0
+
+dispatch=$(cut -f2 <<<"${rows[index]}")
+[[ -n $dispatch ]] && mmsg dispatch "$dispatch" >/dev/null

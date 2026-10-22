@@ -1,0 +1,30 @@
+# aerohud-style workspace overview for mango: a 3x3 grid of workspace cards,
+# each listing its windows. Arrows + Enter, a click, or 1-9 go to a
+# workspace; click a window to focus it; drag a window's icon onto another card
+# to move it.
+#
+#   bind = SUPER, period, spawn, noctalia msg panel-toggle jalmeida/workspace-hud:hud
+
+id = "jalmeida/workspace-hud"
+name = "Workspace HUD"
+version = "0.1.0"
+plugin_api = 34
+author = "jalmeida"
+license = "MIT"
+dependencies = ["mmsg"]
+tags = ["mangowc", "panel", "utility"]
+icon = "layout-grid"
+description = "aerohud-style grid of mango workspaces and their windows."
+
+[[panel]]
+id = "hud"
+entry = "hud.luau"
+width = 1020
+height = 700
+placement = "floating"
+position = "center"
+keyboard_focus = "exclusive"
+capture_keys = [
+  "1", "2", "3", "4", "5", "6", "7", "8", "9",
+  "Left", "Right", "Up", "Down", "Return", "KP_Enter",
+]

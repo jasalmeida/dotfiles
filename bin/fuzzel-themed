@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# fuzzel in Noctalia's current colors. Noctalia rewrites its GTK 4 palette on
+# every theme or wallpaper change, so the colors are read from there each run.
+# Arguments go straight to fuzzel.
+
+css=${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/noctalia.css
+
+color() {
+  sed -n "s/^@define-color $1 #\([0-9a-fA-F]\{6\}\).*/\1/p" "$css" 2>/dev/null | head -n1
+}
+
+args=()
+bg=$(color window_bg_color)
+fg=$(color window_fg_color)
+accent=$(color accent_bg_color)
+on_accent=$(color accent_fg_color)
+if [[ -n $bg && -n $fg && -n $accent && -n $on_accent ]]; then
+  args=(
+    --background-color "${bg}f2"
+    --text-color "${fg}ff"
+    --prompt-color "${fg}ff"
+    --input-color "${fg}ff"
+    --match-color "${accent}ff"
+    --selection-color "${accent}ff"
+    --selection-text-color "${on_accent}ff"
+    --selection-match-color "${on_accent}ff"
+    --border-color "${accent}ff"
+  )
+fi
+
+exec fuzzel "${args[@]}" "$@"

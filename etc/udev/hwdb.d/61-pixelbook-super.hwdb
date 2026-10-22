@@ -1,0 +1,4 @@
+# Google Pixelbook (Eve): make the Assistant key (between Ctrl and Alt) Super.
+# Overrides KEYBOARD_KEY_d8=assistant from systemd's 60-keyboard.hwdb.
+evdev:atkbd:dmi:bvn*:bvr*:bd*:svnGoogle:pnEve:*
+ KEYBOARD_KEY_d8=leftmeta

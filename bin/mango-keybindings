@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+"""Print mango's keybindings, read straight from the config every run.
+
+Follows source = includes, reads #"Description" from the end of a bind and
+section names from short comment lines like "# Windows".
+
+  mango-keybindings            JSON: {"files": [...], "rows": [{title, keys, section, dispatch}]}
+  mango-keybindings --columns  one line per binding, keys padded into a column,
+                               then a tab and the mmsg dispatch ("" if none)
+"""
+
+import json
+import os
+import re
+import sys
+
+MAX_FILES = 32
+SECTION_MAX_LEN = 24
+
+MODS = {"SUPER": "Super", "SHIFT": "Shift", "CTRL": "Ctrl", "CONTROL": "Ctrl", "ALT": "Alt"}
+KEYS = {
+    "return": "Enter", "space": "Space", "tab": "Tab", "escape": "Esc", "backspace": "Backspace",
+    "slash": "/", "period": ".", "comma": ",", "grave": "`", "minus": "-", "equal": "=",
+    "left": "←", "right": "→", "up": "↑", "down": "↓",
+    "code:49": "`",
+    "btn_left": "Left drag", "btn_right": "Right drag", "btn_middle": "Middle click",
+}
+
+BIND_RE = re.compile(r"^(\w*bind\w*)\s*=\s*(.+)$")
+DESC_RE = re.compile(r'\s#\s*"([^"]*)"\s*$')
+SOURCE_RE = re.compile(r"^source(?:-optional)?\s*=\s*(.+)$")
+
+
+def key_label(key):
+    named = KEYS.get(key.lower())
+    if named:
+        return named
+    if key.startswith("XF86"):
+        return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", key[4:])  # AudioRaiseVolume -> Audio Raise Volume
+    return key.upper() if len(key) == 1 else key
+
+
+def keys_label(mods, key):
+    parts = [MODS[m.strip().upper()] for m in mods.split("+") if m.strip().upper() in MODS]
+    return " + ".join(parts + [key_label(key.strip())])
+
+
+def section_from(comment):
+    text = comment.lstrip("#").strip()
+    if not text or len(text) > SECTION_MAX_LEN or re.search(r"[.|:=]", text):
+        return None
+    return text
+
+
+def parse_bind(kind, body, section):
+    description = None
+    m = DESC_RE.search(body)
+    if m:
+        description = m.group(1)
+        body = body[: m.start()]
+    body = re.sub(r"\s#.*$", "", body).strip()
+
+    fields = [f.strip() for f in body.split(",")]
+    fields += [""] * (3 - len(fields))
+    mods, key, func = fields[:3]
+    args = [f for f in fields[3:] if f]
+
+    return {
+        "section": section,
+        "mods": mods,
+        "key": key,
+        "keys": keys_label(mods, key),
+        "title": description or " ".join([func] + args),
+        # Mouse/axis/gesture binds can't be run from a list.
+        "dispatch": ",".join([func] + args) if kind.startswith("bind") and func else None,
+    }
+
+
+def parse_file(path, rows, files):
+    if path in files or len(files) >= MAX_FILES:
+        return
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return
+    files.append(path)
+
+    section = None
+    for raw in lines:
+        line = raw.strip()
+        if line.startswith("#"):
+            section = section_from(line) or section
+            continue
+        include = SOURCE_RE.match(line)
+        if include:
+            target = os.path.expanduser(include.group(1).strip())
+            parse_file(os.path.normpath(os.path.join(os.path.dirname(path), target)), rows, files)
+            continue
+        bind = BIND_RE.match(line)
+        if bind:
+            rows.append(parse_bind(bind.group(1), bind.group(2), section))
+
+
+def merge_digit_runs(rows):
+    """Collapse Super+1 .. Super+9 "Go to workspace" into one row."""
+    out = []
+    for row in rows:
+        last = out[-1] if out else None
+        digit = row["key"].isdigit() and len(row["key"]) == 1
+        if (digit and last and "last_digit" in last and last["title"] == row["title"]
+                and last["mods"] == row["mods"] and int(row["key"]) == last["last_digit"] + 1):
+            last["last_digit"] = int(row["key"])
+            last["keys"] = keys_label(last["mods"], f"{last['first_digit']}–{row['key']}")
+            last["dispatch"] = None
+            continue
+        if digit:
+            row["first_digit"], row["last_digit"] = row["key"], int(row["key"])
+        out.append(row)
+    return out
+
+
+def main():
+    args = sys.argv[1:]
+    columns = "--columns" in args
+    args = [a for a in args if a != "--columns"]
+    config = os.path.expanduser(args[0] if args else "~/.config/mango/config.conf")
+
+    rows, files = [], []
+    parse_file(config, rows, files)
+    rows = [
+        {k: r[k] for k in ("title", "keys", "section", "dispatch")}
+        for r in merge_digit_runs(rows)
+    ]
+
+    if columns:
+        width = max((len(r["keys"]) for r in rows), default=0) + 3
+        for r in rows:
+            print(f"{r['keys'].ljust(width)}{r['title']}\t{r['dispatch'] or ''}")
+    else:
+        json.dump({"files": files, "rows": rows}, sys.stdout, ensure_ascii=False)
+
+
+if __name__ == "__main__":
+    main()
