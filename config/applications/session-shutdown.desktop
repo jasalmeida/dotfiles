@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Shut Down
+Comment=Shut Down (Noctalia session action)
+Exec=noctalia msg session shutdown
+Icon=system-shutdown
+Keywords=power off;poweroff;shutdown;halt;
+Categories=System;

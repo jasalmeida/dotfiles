@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Suspend
+Comment=Suspend (Noctalia session action)
+Exec=noctalia msg session suspend
+Icon=system-suspend
+Keywords=sleep;suspend;
+Categories=System;

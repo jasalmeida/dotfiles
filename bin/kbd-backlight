@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Keyboard backlight up/down in 10% steps. Noctalia's own step is 1% on the
+# Pixelbook's 0-100 backlight, and its "set" doesn't map percentages linearly,
+# so the level is set through logind (no root needed) and Noctalia only shows
+# its on-screen indicator.
+#   kbd-backlight up|down
+
+set -euo pipefail
+
+step=10
+led=$(ls -d /sys/class/leds/*kbd_backlight* 2>/dev/null | head -n1)
+[[ -n $led ]] || exit 0
+
+max=$(cat "$led/max_brightness")
+current=$(( $(cat "$led/brightness") * 100 / max ))
+case ${1:-up} in
+  up) target=$(( current + step > 100 ? 100 : current + step )) ;;
+  down) target=$(( current - step < 0 ? 0 : current - step )) ;;
+esac
+
+busctl call org.freedesktop.login1 /org/freedesktop/login1/session/auto \
+  org.freedesktop.login1.Session SetBrightness ssu leds "$(basename "$led")" $(( target * max / 100 ))
+noctalia msg keyboard-backlight-osd "$target" >/dev/null

@@ -7,7 +7,7 @@ Run `./install.sh` to symlink everything into place (existing files are kept as 
 It also installs the Pixelbook keyboard fix on a Pixelbook, and says how to add the
 Noctalia plugin.
 
-Needs `mango`, `noctalia`, `fuzzel`, `jq` and `python3`.
+Needs `mango`, `noctalia`, `fuzzel`, `wtype`, `jq` and `python3`.
 
 The earlier Omarchy/Hyprland setup is kept, untouched, in
 [`archive/omarchy-hyprland/`](archive/omarchy-hyprland/).
@@ -70,8 +70,22 @@ drawing long lists) has to happen elsewhere; that's why the keybindings list is 
 Monospace (so the keybindings columns line up), larger text, rounded border. Colors come
 from `fuzzel-themed`.
 
-## Pixelbook (`etc/udev/hwdb.d/`)
+`config/applications/` (→ `~/.local/share/applications`) adds Lock Screen, Suspend, Log Out,
+Reboot and Shut Down to the app launcher, through `noctalia msg session <action>`.
 
-**`61-pixelbook-super.hwdb`** turns the Assistant key (between Ctrl and Alt) into Super.
-systemd maps it to KEY_ASSISTANT, which no compositor keymap can see. `install.sh`
-copies it to `/etc` on a Pixelbook (DMI product "Eve").
+## Pixelbook (`etc/udev/hwdb.d/`, `config/mango/cfg/pixelbook.conf`)
+
+**`61-pixelbook-super.hwdb`** overrides systemd's Pixelbook keymap. `install.sh` copies it
+to `/etc` on a Pixelbook (DMI product "Eve").
+
+- The Assistant key (between Ctrl and Alt) becomes Super. systemd maps it to KEY_ASSISTANT,
+  which no compositor keymap can see.
+- The top row sends plain F1-F10, and the hamburger key F13 (bound as `code:191`: the
+  keymap calls F13 XF86Tools).
+
+**`pixelbook.conf`** uses Super like an Fn key for the action printed on each top-row key:
+Super+F5/F6 brightness (+Shift keyboard backlight, +Alt min/max), Super+F7 play/pause,
+Super+F8 mute (+Shift audio devices), Super+F9/F10 volume (+Alt by 1%). The hamburger key
+opens the app launcher. With no Delete key, Super+Backspace types Delete (needs `wtype`),
+and Super+Ctrl+Alt+Backspace closes every window (`mango-close-all-windows`). `kbd-backlight`
+steps the keyboard backlight by 10% through logind; Noctalia's own step is 1% here.

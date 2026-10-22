@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Reboot
+Comment=Reboot (Noctalia session action)
+Exec=noctalia msg session reboot
+Icon=system-reboot
+Keywords=restart;reboot;
+Categories=System;

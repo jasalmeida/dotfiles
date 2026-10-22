@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Log Out
+Comment=Log Out (Noctalia session action)
+Exec=noctalia msg session logout
+Icon=system-log-out
+Keywords=logout;exit;quit;sign out;
+Categories=System;

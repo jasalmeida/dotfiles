@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lock Screen
+Comment=Lock Screen (Noctalia session action)
+Exec=noctalia msg session lock
+Icon=system-lock-screen
+Keywords=lock;screen;
+Categories=System;

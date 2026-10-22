@@ -26,6 +26,11 @@ done
 
 link "$repo/config/fuzzel/fuzzel.ini" "$HOME/.config/fuzzel/fuzzel.ini"
 
+# Lock / suspend / log out / reboot / shut down as launcher entries (Super+Space).
+for entry in "$repo"/config/applications/*.desktop; do
+  link "$entry" "$HOME/.local/share/applications/$(basename "$entry")"
+done
+
 # Pixelbook: the Assistant key (between Ctrl and Alt) becomes Super. Copied, not
 # linked: udev reads /etc before any user is logged in.
 if [[ $(cat /sys/class/dmi/id/product_name 2>/dev/null) == Eve ]]; then

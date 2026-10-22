@@ -22,7 +22,7 @@ KEYS = {
     "return": "Enter", "space": "Space", "tab": "Tab", "escape": "Esc", "backspace": "Backspace",
     "slash": "/", "period": ".", "comma": ",", "grave": "`", "minus": "-", "equal": "=",
     "left": "←", "right": "→", "up": "↑", "down": "↓",
-    "code:49": "`",
+    "code:49": "`", "code:191": "Menu",
     "btn_left": "Left drag", "btn_right": "Right drag", "btn_middle": "Middle click",
 }
 

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Close every window on every workspace (the Pixelbook's Ctrl+Alt+Delete
+# stand-in). Apps get a normal close request, so they can still ask to save.
+
+set -euo pipefail
+
+mmsg get all-clients | jq -r '.clients[].id' | while read -r id; do
+  mmsg dispatch killclient "client,$id" >/dev/null
+done
