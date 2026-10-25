@@ -57,6 +57,14 @@ Super+K lists every binding (see `keybindings-menu` below). The highlights:
   `monitors.conf` template. Add a `monitors-<host>.conf` and a case in `install.sh` for
   a new machine. Display tools like wdisplays only change it until logout.
 
+## Alacritty (`config/alacritty/` → `~/.config/alacritty`)
+
+CachyOS's default `alacritty.toml`, fixed: its `working_directory = "None"` (read as a
+folder named "None") is gone, and Shift+Enter (a newline in Claude Code) is in the
+`[keyboard] bindings` list. Claude Code's `/terminal-setup` appends that binding as a
+separate `[[keyboard.bindings]]` table, which clashes with the list and stops Alacritty
+from loading the file at all, so don't rerun it here.
+
 ## Scripts (`bin/` → `~/.local/bin`)
 
 - **`keybindings-menu`**: Super+K. Keys on the left, what they do on the right, in rofi;

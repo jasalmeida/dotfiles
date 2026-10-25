@@ -52,6 +52,8 @@ case "$dmi_product" in
 esac
 link "$monitors_src" "$HOME/.config/mango/cfg/monitors.conf"
 
+link "$repo/config/alacritty/alacritty.toml" "$HOME/.config/alacritty/alacritty.toml"
+
 # Noctalia: config.toml (incl. the plugin source for config/noctalia/plugins)
 # and the settings its UI saves. Copy them back here after changing settings:
 #   cp ~/.config/noctalia/config.toml ~/.local/state/noctalia/settings.toml config/noctalia/
