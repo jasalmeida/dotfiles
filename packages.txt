@@ -1,0 +1,196 @@
+# Packages the installer puts on every machine. One per line; # starts a comment.
+# Starting point: what CachyOS's own installer chose for the mango + Noctalia
+# desktop on the Motile (from /var/log/pacman.log), plus what was added by hand.
+# The CPU microcode (amd-ucode / intel-ucode) is picked by the installer per CPU,
+# and chwd adds the GPU drivers, so neither is listed here.
+
+# Base system
+base
+base-devel
+linux-firmware
+sudo
+man-db
+man-pages
+less
+which
+diffutils
+texinfo
+perl
+python
+lsb-release
+logrotate
+inetutils
+s-nail
+sysfsutils
+usbutils
+
+# Kernels (the LTS one is a fallback in the boot menu if a new kernel breaks)
+linux-cachyos
+linux-cachyos-headers
+linux-cachyos-lts
+linux-cachyos-lts-headers
+mkinitcpio
+
+# Boot: Limine, with btrfs snapshots in the boot menu
+limine
+limine-mkinitcpio-hook
+limine-snapper-sync
+efibootmgr
+plymouth
+cachyos-plymouth-bootanimation
+cachyos-plymouth-theme
+
+# Disks and filesystems
+btrfs-progs
+snapper
+btrfs-assistant
+cachyos-snapper-support
+cryptsetup
+device-mapper
+lvm2
+mdadm
+dmraid
+dosfstools
+e2fsprogs
+exfatprogs
+f2fs-tools
+jfsutils
+xfsprogs
+nilfs-utils
+nfs-utils
+efitools
+mtools
+fsarchiver
+smartmontools
+hdparm
+sg3_utils
+lsscsi
+os-prober
+
+# CachyOS
+cachyos-hooks
+cachyos-keyring
+cachyos-mirrorlist
+cachyos-v3-mirrorlist
+cachyos-v4-mirrorlist
+cachyos-rate-mirrors
+cachyos-settings
+cachyos-micro-settings
+cachyos-hello
+cachyos-kernel-manager
+cachyos-packageinstaller
+cachyos-wallpapers
+cachyos-fish-config
+cachyos-zsh-config
+chwd
+hwdetect
+hwinfo
+dmidecode
+
+# Network and Bluetooth
+networkmanager
+networkmanager-openvpn
+iwd
+wpa_supplicant
+wireless-regdb
+modemmanager
+usb_modeswitch
+dnsmasq
+bind
+ethtool
+nss-mdns
+netctl
+xl2tpd
+ufw
+ufw-extras
+openssh
+bluez
+bluez-hid2hci
+bluez-libs
+bluez-utils
+bluez-obex
+
+# Sound
+pipewire-pulse
+pipewire-alsa
+wireplumber
+alsa-firmware
+alsa-plugins
+alsa-utils
+pavucontrol
+sof-firmware
+realtime-privileges
+
+# Power
+cpupower
+power-profiles-daemon
+upower
+
+# Desktop: mango + Noctalia (cachyos-mango-noctalia pulls in mango, Noctalia,
+# dolphin, gnome-keyring, the portals and themes), and what the dotfiles use
+cachyos-mango-noctalia
+noctalia-greeter
+greetd
+rofi
+wtype
+jq
+accountsservice
+xdg-user-dirs
+xdg-utils
+mesa-utils
+
+# Fonts
+noto-fonts
+noto-fonts-cjk
+noto-fonts-emoji
+cantarell-fonts
+ttf-bitstream-vera
+ttf-dejavu
+ttf-liberation
+ttf-opensans
+ttf-meslo-nerd
+awesome-terminal-fonts
+
+# Media and file previews
+gst-libav
+gst-plugin-pipewire
+gst-plugins-bad
+gst-plugins-ugly
+libdvdcss
+vlc-plugins-all
+ffmpegthumbnailer
+libgsf
+libopenraw
+poppler-glib
+
+# Apps
+alacritty
+chromium
+claude-code
+git
+meld
+
+# Command-line tools
+bash-completion
+btop
+duf
+fastfetch
+glances
+micro
+nano
+nano-syntax-highlighting
+vim
+pacman-contrib
+pkgfile
+plocate
+pv
+rebuild-detector
+reflector
+ripgrep
+rsync
+shelly
+unrar
+unzip
+wget
+python-defusedxml
+python-packaging
