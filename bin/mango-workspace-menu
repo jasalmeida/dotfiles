@@ -55,7 +55,8 @@ for ws in $(printf '%s\n' "${!rows[@]}" | sort -n); do
 done
 
 choice=$(printf '%s\n' "${options[@]}" |
-  fuzzel-themed --dmenu --prompt "Workspaces  " --width 120 --lines "${#options[@]}") || exit 0
+  rofi-themed -dmenu -i -p Workspaces \
+    -theme-str "window { width: 120ch; } listview { lines: ${#options[@]}; }") || exit 0
 target=$(awk '{print $2}' <<<"$choice")
 
 [[ $target =~ ^[0-9]+$ ]] && mmsg dispatch "view,$target,0" >/dev/null
