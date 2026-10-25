@@ -34,8 +34,23 @@ done
 
 link "$repo/config/mango/config.conf" "$HOME/.config/mango/config.conf"
 for file in "$repo"/config/mango/cfg/*.conf; do
-  link "$file" "$HOME/.config/mango/cfg/$(basename "$file")"
+  base=$(basename "$file")
+  # monitors-*.conf are per-host variants, picked below instead of linked as-is.
+  [[ $base == monitors-*.conf ]] && continue
+  link "$file" "$HOME/.config/mango/cfg/$base"
 done
+
+# monitors.conf: pick the panel-specific file by DMI product name. Every laptop's
+# internal output is named eDP-1 regardless of model, so a rule tuned for one
+# machine's panel (mode, scale) would otherwise get forced onto any other machine's
+# panel too. Unmatched hardware falls back to the generic, hardware-free monitors.conf.
+dmi_product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)
+case "$dmi_product" in
+  Eve)  monitors_src="$repo/config/mango/cfg/monitors-pixelbook.conf" ;;
+  M141) monitors_src="$repo/config/mango/cfg/monitors-motile.conf" ;;
+  *)    monitors_src="$repo/config/mango/cfg/monitors.conf" ;;
+esac
+link "$monitors_src" "$HOME/.config/mango/cfg/monitors.conf"
 
 # Noctalia: config.toml (incl. the plugin source for config/noctalia/plugins)
 # and the settings its UI saves. Copy them back here after changing settings:

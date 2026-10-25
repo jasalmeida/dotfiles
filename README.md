@@ -3,12 +3,24 @@
 Personal [mango](https://github.com/mangowm/mango) (mangowc) setup on CachyOS, with the
 Noctalia shell, tuned to feel like Omarchy and macOS.
 
+## Fresh install
+
+Enable disk encryption (LUKS) in the CachyOS installer. The greetd autologin below (see
+Login) only skips the login password because the disk passphrase already proved it's you;
+on an unencrypted disk, autologin would hand a cold boot straight to the desktop.
+
+Install the packages (`mango` is the binary; the package is `mangowm`):
+
+    sudo pacman -S mangowm noctalia noctalia-greeter rofi wtype jq python3 greetd \
+      alacritty dolphin chromium
+
+Clone this repo to `~/workspace/dotfiles` specifically — `config/noctalia/config.toml`
+hardcodes that path as a plugin source, so a different clone location breaks the
+Noctalia plugins (keybindings menu, workspace HUD, etc). Then run `./install.sh`.
+
 Run `./install.sh` to symlink everything into place (existing files are kept as `*.bak`).
 It also copies in Noctalia's settings, installs the Pixelbook keyboard fix on a Pixelbook,
 and installs the greetd login files (switching to greetd stays manual, see Login below).
-
-Needs `mango`, `noctalia`, `rofi`, `wtype`, `jq`, `python3`, `greetd` and `noctalia-greeter`;
-Chromium is the browser.
 
 The earlier Omarchy/Hyprland setup is kept, untouched, in
 [`archive/omarchy-hyprland/`](archive/omarchy-hyprland/).
@@ -39,8 +51,11 @@ Super+K lists every binding (see `keybindings-menu` below). The highlights:
 - **`appearance.conf`**: no gaps. **`input.conf`**: natural trackpad scrolling, and
   two-finger click = right click (`trackpad_click_method = 2`; the default only
   right-clicks in the bottom-right corner).
-- **`monitors.conf`**: the Pixelbook panel at 1.5x. Display tools like wdisplays only
-  change it until logout.
+- **`monitors.conf`**: `install.sh` symlinks in `monitors-pixelbook.conf` (1.5x) or
+  `monitors-motile.conf` (1x) by DMI product name, since every laptop's internal panel
+  is named eDP-1 regardless of model; unmatched hardware gets the hardware-free
+  `monitors.conf` template. Add a `monitors-<host>.conf` and a case in `install.sh` for
+  a new machine. Display tools like wdisplays only change it until logout.
 
 ## Scripts (`bin/` → `~/.local/bin`)
 
