@@ -1,0 +1,19 @@
+# greetd: Noctalia's greeter as the login screen. Copied (not linked) to
+# /etc/greetd/ by install.sh; greetd starts before any user is logged in.
+
+[terminal]
+vt = 1
+
+# The login screen, shown after logging out (and if autologin is removed).
+[default_session]
+command = "/usr/bin/noctalia-greeter-session"
+user = "greeter"
+
+# Autologin straight into mango, once per boot, right after the disk (LUKS)
+# passphrase. The disk passphrase already proved it's me; the lock screen and
+# logout still ask for the login password. greetd skips PAM auth for this
+# session, so the keyring can't be unlocked by a password here: it has none,
+# and the encrypted disk protects it at rest.
+[initial_session]
+command = "env XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=mango XDG_CURRENT_DESKTOP=mango:wlroots mango"
+user = "jalmeida"

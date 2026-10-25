@@ -1,0 +1,15 @@
+#%PAM-1.0
+# greetd's stock rules plus the gnome-keyring lines SDDM uses, so logging in
+# from Noctalia's greeter unlocks the keyring. (Autologin after the disk
+# passphrase skips "auth", so the keyring is kept without a password and the
+# encrypted disk protects it at rest.)
+
+auth       required     pam_securetty.so
+auth       requisite    pam_nologin.so
+auth       include      system-local-login
+-auth      optional     pam_gnome_keyring.so
+account    include      system-local-login
+password   include      system-local-login
+-password  optional     pam_gnome_keyring.so    use_authtok
+session    include      system-local-login
+-session   optional     pam_gnome_keyring.so    auto_start
