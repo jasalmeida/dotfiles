@@ -22,6 +22,13 @@ Run `./install.sh` to symlink everything into place (existing files are kept as 
 It also copies in Noctalia's settings, installs the Pixelbook keyboard fix on a Pixelbook,
 and installs the greetd login files (switching to greetd stays manual, see Login below).
 
+After switching to greetd (see Login) and rebooting, the login keyring still has the
+password from your first SDDM login, so the first app to use it prompts for it. Clear it
+once: `sudo pacman -S seahorse`, then in Seahorse right-click Login → Change Password,
+enter the old password, leave the new one empty, and accept storing it unencrypted. Don't
+delete the keyring instead: it holds Chromium's Safe Storage key, and losing that signs
+Chromium out of everything.
+
 The earlier Omarchy/Hyprland setup is kept, untouched, in
 [`archive/omarchy-hyprland/`](archive/omarchy-hyprland/).
 
@@ -112,7 +119,8 @@ shows the greeter. `noctalia msg greeter-sync` copies the wallpaper, colors and 
 
 greetd's autologin skips PAM `auth`, so nothing can unlock the keyring there
 (`pam_systemd_loadkey` included): the login keyring has **no password** and is protected
-at rest by the disk encryption. Only sound with full-disk encryption. The PAM file adds
+at rest by the disk encryption (clearing its password is a fresh-install step above).
+Only sound with full-disk encryption. The PAM file adds
 the usual gnome-keyring lines for logins through the greeter.
 
 Switching (after `install.sh` put the files in `/etc`): `sudo systemctl disable sddm`,
