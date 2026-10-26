@@ -95,10 +95,20 @@ esac
 ask hostname "Name for this computer" "${suggested:-cachyos}"
 
 step "Disk"
-# Never offer the USB stick this is running from.
-usb=$(lsblk -no PKNAME "$(findmnt -no SOURCE /run/archiso/bootmnt 2> /dev/null)" 2> /dev/null || true)
+# Never offer the USB stick this is running from: the disk under the boot mount
+# (through Ventoy's device-mapper layer, if any), and any disk holding a Ventoy
+# or USB-image filesystem (the boot mount is gone after copytoram).
+usb_disks() {
+  local src
+  src=$(findmnt -no SOURCE /run/archiso/bootmnt 2> /dev/null) &&
+    lsblk -slnpo NAME,TYPE "$src" 2> /dev/null | awk '$2 == "disk" {print $1}'
+  lsblk -lnpo NAME,FSTYPE,LABEL | awk '$2 == "iso9660" || $3 == "Ventoy" || $3 == "VTOYEFI" {print $1}' |
+    while read -r part; do lsblk -slnpo NAME,TYPE "$part" | awk '$2 == "disk" {print $1}'; done
+}
 if [[ -z ${disk:-} ]]; then
-  mapfile -t disks < <(lsblk -dnpo NAME,SIZE,MODEL -e 7,11 | grep -v zram | grep -v "^/dev/${usb:-none} ")
+  skip=$(usb_disks | sort -u)
+  mapfile -t disks < <(lsblk -dnpo NAME,SIZE,MODEL -e 7,11 | grep -v zram |
+    awk -v skip="$skip" 'BEGIN {n = split(skip, s, "\n"); for (i = 1; i <= n; i++) if (s[i] != "") bad[s[i]] = 1} !($1 in bad)')
   [[ ${#disks[@]} -gt 0 ]] || die "no disk to install onto"
   disk=$(printf '%s\n' "${disks[@]}" | gum choose --header "Disk to ERASE and install onto")
   disk=${disk%% *}
