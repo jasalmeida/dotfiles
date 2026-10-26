@@ -3,31 +3,53 @@
 Personal [mango](https://github.com/mangowm/mango) (mangowc) setup on CachyOS, with the
 Noctalia shell, tuned to feel like Omarchy and macOS.
 
-## Fresh install
+## New machine
 
-Enable disk encryption (LUKS) in the CachyOS installer. The greetd autologin below (see
-Login) only skips the login password because the disk passphrase already proved it's you;
-on an unencrypted disk, autologin would hand a cold boot straight to the desktop.
+Boot the [CachyOS](https://cachyos.org/download/) live USB, connect to the internet, open
+a terminal, and run:
 
-Install the packages (`mango` is the binary; the package is `mangowm`):
+    curl -fsSL https://raw.githubusercontent.com/jasalmeida/dotfiles/main/setup.sh | sudo bash
 
-    sudo pacman -S mangowm noctalia noctalia-greeter rofi wtype jq python3 greetd \
-      alacritty dolphin chromium
+[`setup.sh`](setup.sh) asks for your name, username, password, git name and email, a name
+for the computer, which disk to use, and a disk encryption passphrase. Then, unattended:
 
-Clone this repo to `~/workspace/dotfiles` specifically — `config/noctalia/config.toml`
-hardcodes that path as a plugin source, so a different clone location breaks the
-Noctalia plugins (keybindings menu, workspace HUD, etc). Then run `./install.sh`.
+- **erases the disk** (after you type its name to confirm) and installs CachyOS the way
+  its own installer does: a 4 GB EFI partition, LUKS2, btrfs with `@`, `@home`, `@root`,
+  `@srv`, `@cache`, `@tmp` and `@log`, and Limine with btrfs snapshots in its boot menu
+- picks CachyOS's repos for the CPU (`x86-64-v4` or `-v3`, else generic), the CPU's
+  microcode, and the GPU drivers (`chwd`)
+- installs everything in [`packages.txt`](packages.txt) (no Firefox, no SDDM; Chromium
+  and Claude Code are in)
+- creates your account (fish, sudo through `wheel`; root is locked), sets the timezone
+  (`America/New_York`), locale and keymap at the top of `setup.sh`
+- clones this repo to `~/workspace/dotfiles` over HTTPS, runs `install.sh`, and logs in
+  through greetd with a login keyring that has no password (see Login)
 
-Run `./install.sh` to symlink everything into place (existing files are kept as `*.bak`).
-It also copies in Noctalia's settings, installs the Pixelbook keyboard fix on a Pixelbook,
-and installs the greetd login files (switching to greetd stays manual, see Login below).
+Reboot, type the disk passphrase, and you're on the desktop. The clone's `origin` is the
+read-only GitHub URL; add your SSH key and point it at the home server to push.
 
-After switching to greetd (see Login) and rebooting, the login keyring still has the
-password from your first SDDM login, so the first app to use it prompts for it. Clear it
-once: `sudo pacman -S seahorse`, then in Seahorse right-click Login → Change Password,
-enter the old password, leave the new one empty, and accept storing it unencrypted. Don't
-delete the keyring instead: it holds Chromium's Safe Storage key, and losing that signs
-Chromium out of everything.
+The repo has to live at `~/workspace/dotfiles`: `config/noctalia/config.toml` names that
+path as a plugin source (keybindings menu, workspace HUD).
+
+[`test/`](test/README.md) runs the whole thing in a VM, from the live USB to the desktop.
+
+## On an existing CachyOS install
+
+Install the packages in `packages.txt`, then run `./install.sh`. It links everything into
+place (existing files are kept as `*.bak`), copies in Noctalia's settings, installs the
+Pixelbook keyboard fix on a Pixelbook, and installs the greetd login files through sudo.
+Switching from SDDM to greetd stays manual (see Login).
+
+Disk encryption matters: the greetd autologin only skips the login password because the
+disk passphrase already proved it's you. On an unencrypted disk it would hand a cold boot
+straight to the desktop.
+
+After switching to greetd and rebooting, the login keyring still has the password from
+your first SDDM login, so the first app to use it prompts for it. Clear it once:
+`sudo pacman -S seahorse`, then in Seahorse right-click Login → Change Password, enter the
+old password, leave the new one empty, and accept storing it unencrypted. Don't delete the
+keyring instead: it holds Chromium's Safe Storage key, and losing that signs Chromium out
+of everything.
 
 The earlier Omarchy/Hyprland setup is kept, untouched, in
 [`archive/omarchy-hyprland/`](archive/omarchy-hyprland/).
@@ -119,7 +141,7 @@ shows the greeter. `noctalia msg greeter-sync` copies the wallpaper, colors and 
 
 greetd's autologin skips PAM `auth`, so nothing can unlock the keyring there
 (`pam_systemd_loadkey` included): the login keyring has **no password** and is protected
-at rest by the disk encryption (clearing its password is a fresh-install step above).
+at rest by the disk encryption (`setup.sh` creates it that way; on an existing install, see above).
 Only sound with full-disk encryption. The PAM file adds
 the usual gnome-keyring lines for logins through the greeter.
 
