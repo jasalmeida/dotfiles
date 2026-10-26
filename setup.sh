@@ -1,10 +1,8 @@
 #!/bin/bash
-# Build a whole machine from the CachyOS live USB: erase a disk, install CachyOS
-# (LUKS + btrfs + Limine, as CachyOS's own installer sets it up), every package in
-# packages.txt, and these dotfiles. Asks only for the personal details.
-#
-# From the live USB's terminal:
-#   curl -fsSL https://raw.githubusercontent.com/jasalmeida/dotfiles/main/setup.sh | sudo bash
+# Build a whole machine from the custom CachyOS USB (see iso/): erase a disk,
+# install CachyOS (LUKS + btrfs + Limine, as CachyOS's own installer sets it up),
+# every package in packages.txt, and these dotfiles. Asks only for the personal
+# details. The USB runs this by itself from its "Install" boot entry.
 #
 # SETUP_ANSWERS=FILE answers the questions from a file of NAME=value lines instead
 # (for testing in a VM; see test/); DOTFILES_REPO overrides where the dotfiles
@@ -17,29 +15,31 @@ LOCALE=en_US.UTF-8
 KEYMAP=us
 SHELL_PATH=/bin/fish
 DOTFILES_REPO=${DOTFILES_REPO:-https://github.com/jasalmeida/dotfiles.git}
-TARBALL=https://github.com/jasalmeida/dotfiles/archive/refs/heads/main.tar.gz
+LOG=/var/log/dotfiles-setup.log
 
 mnt=/mnt
-step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
-die() { printf '\033[1;31merror: %s\033[0m\n' "$*" >&2; exit 1; }
+accent=14
+# gum's prompts and menus in the same cyan (its defaults are blue and red).
+export GUM_INPUT_HEADER_FOREGROUND=14 GUM_INPUT_PROMPT_FOREGROUND=14 GUM_INPUT_CURSOR_FOREGROUND=14 \
+  GUM_CHOOSE_HEADER_FOREGROUND=14 GUM_CHOOSE_CURSOR_FOREGROUND=14 GUM_CHOOSE_SELECTED_FOREGROUND=14 \
+  GUM_CONFIRM_PROMPT_FOREGROUND=14 GUM_CONFIRM_SELECTED_BACKGROUND=14 GUM_CONFIRM_SELECTED_FOREGROUND=0 \
+  GUM_SPIN_SPINNER_FOREGROUND=14
+step() { echo; gum style --bold --foreground "$accent" "==> $*"; }
+die() { gum style --bold --foreground 9 "error: $*" >&2; exit 1; }
 in_target() { arch-chroot "$mnt" "$@"; }
 as_user() { arch-chroot "$mnt" su - "$username" -c "$1"; }
 
 # --- Checks -------------------------------------------------------------------
 
-[[ $EUID == 0 ]] || die "run this as root (sudo bash setup.sh)"
+[[ $EUID == 0 ]] || { echo "run this as root" >&2; exit 1; }
+# Only from the custom USB: it carries gum, and this script assumes CachyOS's
+# live environment throughout.
+[[ -f /etc/dotfiles-installer ]] || { echo "run this from the custom USB (see iso/)" >&2; exit 1; }
 [[ -d /sys/firmware/efi ]] || die "this machine didn't boot in UEFI mode"
-for tool in pacstrap arch-chroot genfstab sgdisk cryptsetup mkfs.btrfs mkfs.fat curl; do
-  command -v $tool > /dev/null || die "missing $tool: run this from the CachyOS live USB"
-done
-curl -fsI -m 10 https://github.com > /dev/null || die "no internet connection (connect to Wi-Fi first)"
+curl -fsI -m 10 https://github.com > /dev/null || die "no internet connection"
 
-# The rest of the repo (packages.txt, ...): next to this script, or downloaded.
-src=$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" 2>/dev/null && pwd || true)
-if [[ ! -f $src/packages.txt ]]; then
-  src=$(mktemp -d)
-  curl -fsSL "$TARBALL" | tar -xz -C "$src" --strip-components=1
-fi
+src=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+[[ -f $src/packages.txt ]] || die "packages.txt isn't next to setup.sh"
 
 # --- Questions ----------------------------------------------------------------
 
@@ -49,12 +49,10 @@ if [[ -n ${SETUP_ANSWERS:-} ]]; then
 fi
 
 ask() {  # ask VAR "Question" [default]
-  local var=$1 question=$2 default=${3:-} reply
+  local var=$1 question=$2 default=${3:-} reply=
   [[ -n ${!var:-} ]] && return
-  while :; do
-    read -rp "$question${default:+ [$default]}: " reply < /dev/tty
-    reply=${reply:-$default}
-    [[ -n $reply ]] && break
+  while [[ -z $reply ]]; do
+    reply=$(gum input --header "$question" --value "$default" --width 60)
   done
   printf -v "$var" '%s' "$reply"
 }
@@ -63,36 +61,76 @@ ask_secret() {  # ask_secret VAR "What"
   local var=$1 what=$2 one two
   [[ -n ${!var:-} ]] && return
   while :; do
-    read -rsp "$what: " one < /dev/tty; echo
-    read -rsp "$what again: " two < /dev/tty; echo
+    one=$(gum input --password --header "$what" --width 60)
+    two=$(gum input --password --header "$what, again" --width 60)
     [[ -n $one && $one == "$two" ]] && break
-    echo "They didn't match (or were empty). Try again."
+    gum style --foreground 9 "They didn't match (or were empty). Try again."
   done
   printf -v "$var" '%s' "$one"
 }
 
+clear
+gum style --border rounded --border-foreground "$accent" --padding "1 4" --margin "1 2" --align center \
+  "$(gum style --bold --foreground "$accent" "CachyOS, set up the way I like it")" \
+  "mango + Noctalia, every package, and the dotfiles" \
+  "" "A few questions, then it runs on its own."
+
 step "About you"
-ask full_name "Full name"
-ask username "Username" "$(tr '[:upper:]' '[:lower:]' <<< "${full_name%% *}")"
-[[ $username =~ ^[a-z_][a-z0-9_-]*$ ]] || die "usernames are lowercase letters, digits, - and _"
+ask full_name "Your full name"
+ask username "Username" "$(tr '[:upper:]' '[:lower:]' <<< "${full_name%% *}" | tr -cd 'a-z0-9_-')"
+until [[ $username =~ ^[a-z_][a-z0-9_-]*$ ]]; do
+  gum style --foreground 9 "Usernames are lowercase letters, digits, - and _."
+  username= && ask username "Username"
+done
 ask_secret password "Password for $username"
 ask git_name "Name for git commits" "$full_name"
 ask git_email "Email for git commits"
-ask hostname "Name for this computer"
+
+case $(cat /sys/class/dmi/id/product_name 2> /dev/null) in
+  Eve)  suggested=pixelbook ;;
+  M141) suggested=motile ;;
+  *)    suggested=$(tr '[:upper:]' '[:lower:]' < /sys/class/dmi/id/product_name 2> /dev/null |
+          tr -c 'a-z0-9' '-' | tr -s '-' | sed 's/^-//; s/-$//') ;;
+esac
+ask hostname "Name for this computer" "${suggested:-cachyos}"
 
 step "Disk"
-lsblk -dno NAME,SIZE,MODEL,TRAN -e 7,11 | grep -v '^zram' | sed 's/^/  /'
-ask disk "Disk to erase and install onto (e.g. nvme0n1)"
+# Never offer the USB stick this is running from.
+usb=$(lsblk -no PKNAME "$(findmnt -no SOURCE /run/archiso/bootmnt 2> /dev/null)" 2> /dev/null || true)
+if [[ -z ${disk:-} ]]; then
+  mapfile -t disks < <(lsblk -dnpo NAME,SIZE,MODEL -e 7,11 | grep -v zram | grep -v "^/dev/${usb:-none} ")
+  [[ ${#disks[@]} -gt 0 ]] || die "no disk to install onto"
+  disk=$(printf '%s\n' "${disks[@]}" | gum choose --header "Disk to ERASE and install onto")
+  disk=${disk%% *}
+fi
 disk=/dev/${disk#/dev/}
 [[ -b $disk && $(lsblk -dno TYPE "$disk") == disk ]] || die "$disk isn't a disk"
-ask_secret luks_passphrase "Disk encryption passphrase (asked at every boot)"
+
+if [[ -z ${luks_passphrase:-} ]]; then
+  if gum confirm "Use your password for the disk encryption too? (asked at every boot)"; then
+    luks_passphrase=$password
+  else
+    ask_secret luks_passphrase "Disk encryption passphrase (asked at every boot)"
+  fi
+fi
 
 echo
-echo "This ERASES EVERYTHING on $disk: $(lsblk -dno SIZE,MODEL "$disk" | xargs)"
+gum style --border rounded --border-foreground 9 --padding "1 3" --margin "0 2" \
+  "$(gum style --bold "Ready to install")" "" \
+  "You         $full_name ($username)" \
+  "Git         $git_name <$git_email>" \
+  "Computer    $hostname" \
+  "Disk        $disk  $(lsblk -dno SIZE,MODEL "$disk" | xargs)" "" \
+  "$(gum style --bold --foreground 9 "Everything on $disk will be erased.")"
 if [[ ${confirm_disk:-} != "${disk#/dev/}" ]]; then
-  read -rp "Type the disk's name (${disk#/dev/}) to go ahead: " confirm_disk < /dev/tty
+  confirm_disk=$(gum input --header "Type ${disk#/dev/} to erase it and install" --width 60)
 fi
 [[ $confirm_disk == "${disk#/dev/}" ]] || die "not confirmed; nothing was changed"
+
+# From here on, a copy of everything goes to the log, and nothing reads the
+# keyboard: anything that would ask (limine-mkinitcpio does, after chwd adds
+# drivers) takes its default instead of waiting at an unattended screen.
+exec > >(tee -a "$LOG") 2>&1 < /dev/null
 
 # --- Disk: EFI partition + LUKS2 with btrfs subvolumes ------------------------
 
@@ -285,7 +323,18 @@ as_user 'mkdir -p ~/.local/share/keyrings && cd ~/.local/share/keyrings &&
 
 # --- Done -------------------------------------------------------------------------
 
+# A copy of the log on the new system, where it'll still be after the reboot.
+cp "$LOG" "$mnt/var/log/dotfiles-setup.log"
 sync
-umount -R "$mnt"
-cryptsetup close "$mapper"
-step "Done. Remove the USB key and reboot; you'll be asked for the disk passphrase."
+# Helpers started inside the new system can hold it for a few seconds after the
+# last command; wait for them, and as a last resort detach it (all is synced).
+for _ in $(seq 15); do
+  umount -R "$mnt" 2> /dev/null && break
+  sleep 2
+done
+if mountpoint -q "$mnt"; then
+  umount -Rl "$mnt"
+else
+  cryptsetup close "$mapper" || true
+fi
+step "Done"

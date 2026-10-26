@@ -1,35 +1,50 @@
 #!/bin/bash
-# Runs inside the test container: boots the CachyOS live image (UEFI) in a VM on
-# a blank disk, with
+# Runs inside the test container: a UEFI VM with
 #   - its screen in a browser: http://HOST:6080/vnc.html
-#   - a root shell on its serial console: /work/serial.sock
-#   - its SSH server on the container's port 2222
-#   - /work/www served to it over HTTP at http://10.0.2.2:8000 (the test repo)
-# /work is a folder on the Docker host holding the ISO; see test/README.md.
+#   - a root shell on its serial console: /work/serial.sock (live image only)
+#   - /work/www served to it over HTTP at http://10.0.2.2:8000 (test repo, answers)
+# VM_BOOT says what it boots:
+#   auto  the newest custom image's Install entry, unattended: it clones the test
+#         repo and answers setup.sh from www/answers (fresh disk)
+#   usb   the newest custom image through its own boot menu, as a real USB key
+#         would (fresh disk; the installer asks its questions)
+#   disk  what's installed on the disk
+# VM_ISO picks another image in /work. See test/README.md.
 set -euo pipefail
 cd /work
-iso=$(ls cachyos-desktop-linux-*.iso | tail -1)
+iso=${VM_ISO:-$(ls out/jasalmeida-cachyos-*.iso 2> /dev/null | sort | tail -1)}
+[[ -f $iso ]] || { echo "no custom image in /work/out: run iso/build.sh" >&2; exit 1; }
 
-# The live image's kernel, booted directly so the VM's kernel command line can
-# add a serial console and skip the desktop.
-if [[ ! -f boot/vmlinuz-linux-cachyos ]]; then
-  mkdir -p boot
-  bsdtar -xf "$iso" -C boot --strip-components=3 \
-    arch/boot/x86_64/vmlinuz-linux-cachyos arch/boot/x86_64/initramfs-linux-cachyos.img
-fi
-label=$(bsdtar -xOf "$iso" boot/grub/grub.cfg | grep -om1 'archisosearchuuid=[^ ]*')
-
-# VM_BOOT=live (default): a fresh disk and UEFI settings, booting the live image,
-# so each test is a clean install. VM_BOOT=disk: boot what was installed.
-if [[ ${VM_BOOT:-live} == live ]]; then
+fresh_disk() {
   cp /usr/share/OVMF/OVMF_VARS_4M.fd vars.fd
   qemu-img create -q -f qcow2 disk.qcow2 30G
-  boot=(-drive file="$iso",media=cdrom,readonly=on
-        -kernel boot/vmlinuz-linux-cachyos -initrd boot/initramfs-linux-cachyos.img
-        -append "archisobasedir=arch $label copytoram=n console=tty0 console=ttyS0,115200 systemd.debug_shell=ttyS0 systemd.mask=systemd-firstboot.service systemd.unit=multi-user.target")
-else
-  boot=()
-fi
+}
+
+case ${VM_BOOT:-auto} in
+  auto)
+    # The Install entry's kernel and options, plus a serial console and the test hooks.
+    kernel=boot/$(basename "$iso" .iso)
+    if [[ ! -f $kernel/vmlinuz-linux-cachyos ]]; then
+      mkdir -p "$kernel"
+      bsdtar -xf "$iso" -C "$kernel" --strip-components=3 \
+        arch/boot/x86_64/vmlinuz-linux-cachyos arch/boot/x86_64/initramfs-linux-cachyos.img
+    fi
+    options=$(bsdtar -xOf "$iso" boot/grub/grub.cfg |
+      awk "/id 'dotfiles-install'/ {found = 1} found && /^ *linux / {sub(/^ *linux [^ ]* /, \"\"); print; exit}")
+    [[ $options == *dotfiles.install* ]] || { echo "no Install entry in $iso" >&2; exit 1; }
+    fresh_disk
+    boot=(-drive file="$iso",media=cdrom,readonly=on
+          -kernel "$kernel/vmlinuz-linux-cachyos" -initrd "$kernel/initramfs-linux-cachyos.img"
+          -append "$options copytoram=n console=tty0 console=ttyS0,115200 systemd.debug_shell=ttyS0 dotfiles.repo=http://10.0.2.2:8000/dotfiles.git dotfiles.answers=http://10.0.2.2:8000/answers")
+    ;;
+  usb)
+    fresh_disk
+    boot=(-drive file="$iso",media=cdrom,readonly=on,if=none,id=usb -device ide-cd,drive=usb,bootindex=0)
+    ;;
+  disk)
+    boot=()
+    ;;
+esac
 rm -f serial.sock monitor.sock
 
 mkdir -p www
@@ -41,7 +56,7 @@ exec qemu-system-x86_64 -enable-kvm -machine q35 -cpu host -smp "${VM_CPUS:-3}" 
   -drive if=pflash,format=raw,file=vars.fd \
   -drive file=disk.qcow2,if=virtio,format=qcow2 \
   "${boot[@]}" \
-  -nic user,model=virtio-net-pci,hostfwd=tcp:0.0.0.0:2222-:22 \
+  -nic user,model=virtio-net-pci \
   -serial unix:serial.sock,server,nowait \
   -monitor unix:monitor.sock,server,nowait \
   -vnc 127.0.0.1:0

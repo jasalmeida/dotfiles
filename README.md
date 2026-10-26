@@ -5,13 +5,14 @@ Noctalia shell, tuned to feel like Omarchy and macOS.
 
 ## New machine
 
-Boot the [CachyOS](https://cachyos.org/download/) live USB, connect to the internet, open
-a terminal, and run:
-
-    curl -fsSL https://raw.githubusercontent.com/jasalmeida/dotfiles/main/setup.sh | sudo bash
+Boot the custom USB key (see below) and leave the first boot entry, **Install CachyOS,
+set up my way**, selected. The installer comes up full screen, gets online (a Wi-Fi
+picker if there's no cable), and fetches the latest `setup.sh` from GitHub, falling back
+to the copy on the key.
 
 [`setup.sh`](setup.sh) asks for your name, username, password, git name and email, a name
-for the computer, which disk to use, and a disk encryption passphrase. Then, unattended:
+for the computer, which disk to use (never the USB key itself), and whether to reuse the
+password for the disk encryption. Then, unattended:
 
 - **erases the disk** (after you type its name to confirm) and installs CachyOS the way
   its own installer does: a 4 GB EFI partition, LUKS2, btrfs with `@`, `@home`, `@root`,
@@ -31,7 +32,27 @@ read-only GitHub URL; add your SSH key and point it at the home server to push.
 The repo has to live at `~/workspace/dotfiles`: `config/noctalia/config.toml` names that
 path as a plugin source (keybindings menu, workspace HUD).
 
-[`test/`](test/README.md) runs the whole thing in a VM, from the live USB to the desktop.
+[`test/`](test/README.md) runs the whole thing in a VM, from the USB key to the desktop.
+
+### The USB key
+
+[`iso/build.sh`](iso/build.sh) makes it from the official CachyOS image, in Docker on the
+home server (it needs the official image in `~/cachyos-usb/` there; see
+[`test/README.md`](test/README.md)):
+
+    iso/build.sh 192.168.0.12
+
+It adds the Install boot entry (the default; CachyOS's live desktop entries stay below
+it), `gum` for the installer's prompts, Terminus console fonts for high-resolution
+screens, and a copy of this repo. Rebuild it when CachyOS puts out a new image; changes
+to `setup.sh` don't need a rebuild, since the key fetches the latest.
+
+The image stays on the server, in `~/cachyos-usb/out/` (each build replaces it). To
+write a key, find its name with `lsblk` (check the size and model: this erases it), then
+stream the image straight onto it:
+
+    ssh 192.168.0.12 cat cachyos-usb/out/jasalmeida-cachyos-260809.iso |
+      sudo dd of=/dev/sdX bs=4M oflag=direct status=progress conv=fsync
 
 ## On an existing CachyOS install
 

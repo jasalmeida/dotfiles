@@ -1,0 +1,23 @@
+[Unit]
+Description=Install CachyOS with the dotfiles (the USB's Install boot entry)
+# Only when booted from the Install entry; the live desktop entries skip this.
+ConditionKernelCommandLine=dotfiles.install
+After=systemd-user-sessions.service NetworkManager.service getty@tty1.service
+Wants=NetworkManager.service
+# Takes tty1 over from the login prompt.
+Conflicts=getty@tty1.service
+
+[Service]
+Type=idle
+ExecStart=/usr/local/bin/dotfiles-installer
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+Environment=TERM=linux HOME=/root
+
+[Install]
+WantedBy=multi-user.target

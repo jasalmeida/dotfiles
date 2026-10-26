@@ -3,7 +3,7 @@
 # the test VM clones over plain HTTP, at http://10.0.2.2:8000/dotfiles.git, and
 # copy it into the test folder's www/ (a local path or HOST:PATH).
 # Rerun after each edit.
-#   test/publish-repo.sh 192.168.0.12:dotfiles-test
+#   test/publish-repo.sh 192.168.0.12:cachyos-usb
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
 dest=${1:?usage: publish-repo.sh TEST_FOLDER (local path or HOST:PATH)}

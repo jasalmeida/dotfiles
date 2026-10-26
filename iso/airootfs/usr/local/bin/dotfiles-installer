@@ -1,0 +1,82 @@
+#!/bin/bash
+# The custom USB's installer, started full screen on tty1 by its "Install" boot
+# entry: gets online, fetches the latest setup.sh (falling back to the copy on
+# the USB), runs it, then offers to reboot.
+# Test hooks on the kernel command line: dotfiles.repo=URL (where to clone from)
+# and dotfiles.answers=URL (a SETUP_ANSWERS file, so nothing is asked).
+set -uo pipefail
+accent=14
+# gum's prompts and menus in the same cyan (its defaults are blue and red).
+export GUM_INPUT_HEADER_FOREGROUND=14 GUM_INPUT_PROMPT_FOREGROUND=14 GUM_INPUT_CURSOR_FOREGROUND=14 \
+  GUM_CHOOSE_HEADER_FOREGROUND=14 GUM_CHOOSE_CURSOR_FOREGROUND=14 GUM_CHOOSE_SELECTED_FOREGROUND=14 \
+  GUM_CONFIRM_PROMPT_FOREGROUND=14 GUM_CONFIRM_SELECTED_BACKGROUND=14 GUM_CONFIRM_SELECTED_FOREGROUND=0 \
+  GUM_SPIN_SPINNER_FOREGROUND=14
+repo=https://github.com/jasalmeida/dotfiles.git
+answers=
+for arg in $(< /proc/cmdline); do
+  case $arg in
+    dotfiles.repo=*)    repo=${arg#*=} ;;
+    dotfiles.answers=*) answers=${arg#*=} ;;
+  esac
+done
+
+# Readable text on high-resolution screens (the Pixelbook's is 2400x1600).
+width=$(cut -d, -f1 /sys/class/graphics/fb0/virtual_size 2> /dev/null || echo 0)
+if (( width >= 2400 )); then setfont ter-v32b
+elif (( width >= 1600 )); then setfont ter-v24b
+fi
+
+say() { gum style --foreground "$accent" "$*"; }
+warn() { gum style --foreground 9 "$*"; }
+
+clear
+say "Starting the installer..."
+
+# Online: wired just works; otherwise pick a Wi-Fi network.
+until curl -fsI -m 5 https://github.com > /dev/null 2>&1; do
+  sleep 3
+  curl -fsI -m 5 https://github.com > /dev/null 2>&1 && break
+  if gum confirm "No internet connection yet. Set up Wi-Fi?" --affirmative "Wi-Fi" --negative "Wait"; then
+    nmtui connect
+  else
+    gum spin --title "Waiting for a connection..." -- sleep 10
+  fi
+done
+
+rm -rf /tmp/dotfiles
+# A shallow clone where the server allows it (GitHub does; test/'s doesn't).
+if gum spin --title "Getting the latest installer..." -- sh -c \
+    "git clone -q --depth 1 '$repo' /tmp/dotfiles 2> /dev/null || { rm -rf /tmp/dotfiles; git clone -q '$repo' /tmp/dotfiles; }"; then
+  version="latest ($(git -C /tmp/dotfiles log -1 --format='%h, %cs'))"
+else
+  cp -r /usr/share/dotfiles /tmp/dotfiles
+  version="the copy on this USB ($(< /etc/dotfiles-installer))"
+fi
+
+if [[ -n $answers ]]; then
+  curl -fsSL "$answers" -o /tmp/answers && export SETUP_ANSWERS=/tmp/answers
+fi
+export DOTFILES_REPO=$repo
+
+while :; do
+  say "Using $version"
+  bash /tmp/dotfiles/setup.sh
+  status=$?
+  echo "EXIT $status" >> /var/log/dotfiles-setup.log
+  if (( status == 0 )); then
+    echo
+    gum style --border rounded --border-foreground "$accent" --padding "1 3" --margin "0 2" \
+      "$(gum style --bold --foreground "$accent" "All done.")" "" \
+      "Remove the USB key and restart." \
+      "You'll be asked for the disk passphrase, then you're on the desktop."
+    gum confirm "Restart now?" --affirmative "Restart" --negative "Not yet" && systemctl reboot
+    exec bash -l
+  fi
+  echo
+  warn "The install stopped (exit $status). The log is in /var/log/dotfiles-setup.log."
+  case $(gum choose "Try again" "Open a shell" "Restart") in
+    "Try again") clear ;;
+    "Restart") systemctl reboot ;;
+    *) gum style "Type 'exit' to come back here."; bash -l; clear ;;
+  esac
+done
