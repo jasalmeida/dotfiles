@@ -142,6 +142,11 @@ fi
 # drivers) takes its default instead of waiting at an unattended screen.
 exec > >(tee -a "$LOG") 2>&1 < /dev/null
 
+# The fastest mirrors that are up to date, for everything downloaded below:
+# stale mirrors make pacman fall back file by file ("failed retrieving file").
+step "Ranking download mirrors"
+cachyos-rate-mirrors || echo "Couldn't rank the mirrors; using the default lists."
+
 # The USB image's signing keys age with it, and new packages can be signed by
 # newer ones. Refresh them first (pacstrap -K copies them into the new system),
 # before anything is erased.
@@ -227,6 +232,11 @@ step "Installing the base system (CachyOS ${level:-generic} repos)"
 pacstrap -K -C /tmp/pacman.conf "$mnt" base mkinitcpio cachyos-keyring cachyos-mirrorlist \
   cachyos-v3-mirrorlist cachyos-v4-mirrorlist
 cp /tmp/pacman.conf "$mnt/etc/pacman.conf"
+# The ranked mirror lists too (pacstrap brings over only Arch's; CachyOS's come
+# unranked from their packages). cachyos-rate-mirrors.timer keeps them fresh.
+for list in mirrorlist cachyos-mirrorlist cachyos-v3-mirrorlist cachyos-v4-mirrorlist; do
+  cp "/etc/pacman.d/$list" "$mnt/etc/pacman.d/$list"
+done
 
 # fstab written by hand, as CachyOS does: mounting by subvolume path (not id) is what
 # lets a restored snapshot boot.

@@ -74,6 +74,20 @@ user_files() {
   place "$repo/config/noctalia/config.toml" "$HOME/.config/noctalia/config.toml"
   place "$repo/config/noctalia/settings.toml" "$HOME/.local/state/noctalia/settings.toml"
 
+  # Noctalia's git plugin sources (the cat, Arch Updater, ...), cloned where it
+  # keeps them, so its plugins are there from its first start even if that's
+  # before the network is up. Ones already there are left for Noctalia to update.
+  local name url
+  while read -r name url; do
+    local dest=$HOME/.local/state/noctalia/plugins/sources/$name/repo
+    [[ -d $dest ]] && continue
+    git clone -q "$url" "$dest" && echo "cloned Noctalia plugin source $name" ||
+      echo "couldn't clone Noctalia plugin source $name (Noctalia fetches it when online)"
+  done < <(awk '/^\s*\[\[plugins.source\]\]/ {kind = url = ""}
+                /^\s*kind = / {kind = $3} /^\s*location = / {url = $3}
+                /^\s*name = / && kind == "\"git\"" {print $3, url}' \
+             "$repo/config/noctalia/config.toml" | tr -d '"')
+
   # Chromium opens web links and HTML files; Super+Shift+Enter follows this too.
   if [[ -f /usr/share/applications/chromium.desktop ]]; then
     xdg-settings set default-web-browser chromium.desktop ||

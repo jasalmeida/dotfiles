@@ -21,10 +21,10 @@ screenshot() {  # screenshot NAME
   scp -q "$host:$dir/screen.png" "$out/$1.png"
   echo "screenshot: $out/$1.png"
 }
-start_vm() {  # start_vm auto|usb|disk
+start_vm() {  # start_vm auto|usb|disk [user|none]
   on_host "docker rm -f dotfiles-test-vm > /dev/null 2>&1; docker run -d --name dotfiles-test-vm \
     --memory 3.5g --memory-swap 3.5g --user \$(id -u):\$(id -g) --group-add \$(stat -c %g /dev/kvm) \
-    --device /dev/kvm -e VM_BOOT=$1 -p $host:6080:6080 -v ~/$dir:/work dotfiles-test-vm > /dev/null"
+    --device /dev/kvm -e VM_BOOT=$1 -e VM_NET=${2:-user} -p $host:6080:6080 -v ~/$dir:/work dotfiles-test-vm > /dev/null"
 }
 
 echo "== Building the VM container on $host"
@@ -59,8 +59,8 @@ echo "setup.sh: ${status:-no result} (log: $out/setup.log)"
 screenshot 1-finished
 [[ $status == "EXIT 0" ]] || exit 1
 
-echo "== Booting the installed system"
-start_vm disk
+echo "== Booting the installed system, offline (Noctalia's plugins must already be there)"
+start_vm disk none
 sleep 30
 screenshot 2-passphrase
 monitor "sendkey t" "sendkey e" "sendkey s" "sendkey t" "sendkey ret"

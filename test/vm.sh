@@ -9,7 +9,7 @@
 #   usb   the newest custom image through its own boot menu, as a real USB key
 #         would (fresh disk; the installer asks its questions)
 #   disk  what's installed on the disk
-# VM_ISO picks another image in /work. See test/README.md.
+# VM_ISO picks another image in /work; VM_NET=none leaves the VM offline. See test/README.md.
 set -euo pipefail
 cd /work
 iso=${VM_ISO:-$(ls out/jasalmeida-cachyos-*.iso 2> /dev/null | sort | tail -1)}
@@ -45,6 +45,9 @@ case ${VM_BOOT:-auto} in
     boot=()
     ;;
 esac
+# VM_NET=none: no network, like a laptop whose Wi-Fi isn't set up yet.
+nic=(-nic user,model=virtio-net-pci)
+[[ ${VM_NET:-user} == none ]] && nic=(-nic none)
 rm -f serial.sock monitor.sock
 
 mkdir -p www
@@ -56,7 +59,7 @@ exec qemu-system-x86_64 -enable-kvm -machine q35 -cpu host -smp "${VM_CPUS:-3}" 
   -drive if=pflash,format=raw,file=vars.fd \
   -drive file=disk.qcow2,if=virtio,format=qcow2 \
   "${boot[@]}" \
-  -nic user,model=virtio-net-pci \
+  "${nic[@]}" \
   -serial unix:serial.sock,server,nowait \
   -monitor unix:monitor.sock,server,nowait \
   -vnc 127.0.0.1:0
