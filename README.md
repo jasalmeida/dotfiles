@@ -37,15 +37,22 @@ path as a plugin source (keybindings menu, workspace HUD).
 ### The USB key
 
 [`iso/build.sh`](iso/build.sh) makes it from the official CachyOS image, in Docker on the
-home server (it needs the official image in `~/cachyos-usb/` there; see
-[`test/README.md`](test/README.md)):
+home server (it downloads the newest official image into `~/cachyos-usb/` there first,
+when cachyos.org has one):
 
     iso/build.sh 192.168.0.12
 
 It adds the Install boot entry (the default; CachyOS's live desktop entries stay below
 it), `gum` for the installer's prompts, Terminus console fonts for high-resolution
-screens, and a copy of this repo. Rebuild it when CachyOS puts out a new image; changes
-to `setup.sh` don't need a rebuild, since the key fetches the latest.
+screens, and a copy of this repo. Builds of committed code are published to Forgejo's
+package registry as `cachyos-usb` (version `RELEASE-COMMIT`), using an upload token in
+`~/.config/cachyos-usb/forgejo-token` on the server.
+
+Changes to `setup.sh`, `packages.txt` and the dotfiles don't need a rebuild: the key
+fetches the latest, and every install downloads current packages. `setup.sh` also
+refreshes the key's package signing keys before installing, so an old image keeps
+working. Rebuild after changing `iso/`, or every few months to pick up a newer kernel for
+newer hardware.
 
 The image stays on the server, in `~/cachyos-usb/out/` (each build replaces it). To
 write a key, find its name with `lsblk` (check the size and model: this erases it), then

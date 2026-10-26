@@ -2,8 +2,8 @@
 # Build the custom USB image on a Docker host, from the official CachyOS image
 # there and this repo's working tree (uncommitted changes included).
 #   iso/build.sh [HOST]        (default 192.168.0.12)
-# HOST needs Docker and ~/cachyos-usb/ holding a cachyos-desktop-linux-*.iso
-# (see test/README.md). The result lands in HOST:~/cachyos-usb/out/.
+# HOST needs Docker; the official image is downloaded into HOST:~/cachyos-usb/
+# when cachyos.org has a newer one. The result lands in HOST:~/cachyos-usb/out/.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/.." && pwd)
@@ -11,6 +11,33 @@ host=${1:-192.168.0.12}
 dir=cachyos-usb
 commit=$(git -C "$repo" rev-parse --short HEAD)
 git -C "$repo" diff --quiet HEAD -- . ':!test/out' || commit+="+changes"
+
+# The newest official image, from cachyos.org's download page (the mirrors don't
+# list their folders). Downloaded and checked only when it's newer than what's
+# there; older ones are removed.
+ssh "$host" bash -s << 'REMOTE'
+set -euo pipefail
+mkdir -p ~/cachyos-usb && cd ~/cachyos-usb
+path=$(curl -fsSL -m 30 https://cachyos.org/download/ |
+  grep -oE 'ISO/desktop/[0-9]{6}/cachyos-desktop-linux-[0-9]{6}\.iso' | sort -u | tail -1 || true)
+if [[ -z $path ]]; then
+  echo "Couldn't check cachyos.org for a newer image; building from what's here."
+  exit 0
+fi
+iso=${path##*/}
+if [[ -f $iso ]]; then
+  echo "Official image: $iso (the newest)"
+  exit 0
+fi
+echo "Downloading the newest official image, $iso"
+curl -fsSL -o "$iso.sha256" "https://cdn77.cachyos.org/$path.sha256"
+curl -fsSL -o "$iso.part" "https://cdn77.cachyos.org/$path"
+mv "$iso.part" "$iso"
+sha256sum -c --quiet "$iso.sha256" || { rm -f "$iso" "$iso.sha256"; echo "$iso: checksum mismatch" >&2; exit 1; }
+for old in cachyos-desktop-linux-*.iso; do
+  [[ $old == "$iso" ]] || rm -f "$old" "$old.sha256"
+done
+REMOTE
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

@@ -142,6 +142,13 @@ fi
 # drivers) takes its default instead of waiting at an unattended screen.
 exec > >(tee -a "$LOG") 2>&1 < /dev/null
 
+# The USB image's signing keys age with it, and new packages can be signed by
+# newer ones. Refresh them first (pacstrap -K copies them into the new system),
+# before anything is erased.
+step "Refreshing the package signing keys"
+systemctl start pacman-init.service 2> /dev/null || true  # the live image's keyring, set up at boot
+pacman -Sy --noconfirm --needed archlinux-keyring cachyos-keyring
+
 # --- Disk: EFI partition + LUKS2 with btrfs subvolumes ------------------------
 
 step "Partitioning $disk"
@@ -303,6 +310,16 @@ for unit in NetworkManager bluetooth ufw greetd systemd-resolved systemd-timesyn
   in_target systemctl enable "$unit" 2> /dev/null || echo "  (no $unit, skipped)"
 done
 ln -sf /run/systemd/resolve/stub-resolv.conf "$mnt/etc/resolv.conf"
+
+# The Wi-Fi joined during the install (nmtui saves it here), so the new system
+# is online from the first login. Its password stays readable only by root, on
+# the encrypted disk.
+for conn in /etc/NetworkManager/system-connections/*.nmconnection; do
+  [[ -f $conn ]] || continue
+  grep -q '^type=wifi' "$conn" || continue
+  install -Dm600 "$conn" "$mnt/etc/NetworkManager/system-connections/$(basename "$conn")"
+  echo "  Wi-Fi: $(sed -n 's/^id=//p' "$conn")"
+done
 
 # --- You ------------------------------------------------------------------------
 

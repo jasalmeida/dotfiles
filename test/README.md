@@ -9,13 +9,7 @@ changes included; rebuild the image only after changing `iso/`.
     test/run.sh 192.168.0.12
 
 The VM runs in a Docker container on that host, so the host needs Docker (you in the
-`docker` group), `/dev/kvm`, and the official CachyOS image in `~/cachyos-usb/`, which
-`iso/build.sh` starts from:
-
-    mkdir -p ~/cachyos-usb && cd ~/cachyos-usb
-    curl -fLO https://cdn77.cachyos.org/ISO/desktop/260809/cachyos-desktop-linux-260809.iso
-    curl -fLO https://cdn77.cachyos.org/ISO/desktop/260809/cachyos-desktop-linux-260809.iso.sha256
-    sha256sum -c cachyos-desktop-linux-260809.iso.sha256
+`docker` group) and `/dev/kvm`. `iso/build.sh` puts the images in `~/cachyos-usb/` there.
 
 Watch it at `http://HOST:6080/vnc.html`. The installer answers its questions from
 `www/answers` (user `tester`, password and disk passphrase `test`); screenshots and the
