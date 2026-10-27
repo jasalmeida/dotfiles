@@ -62,6 +62,7 @@ user_files() {
   case "$dmi_product" in
     Eve)  monitors_src="$repo/config/mango/cfg/monitors-pixelbook.conf" ;;
     M141) monitors_src="$repo/config/mango/cfg/monitors-motile.conf" ;;
+    "ROG Zephyrus G14"*) monitors_src="$repo/config/mango/cfg/monitors-g14.conf" ;;
     *)    monitors_src="$repo/config/mango/cfg/monitors.conf" ;;
   esac
   link "$monitors_src" "$HOME/.config/mango/cfg/monitors.conf"

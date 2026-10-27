@@ -108,9 +108,9 @@ Super+K lists every binding (see `keybindings-menu` below). The highlights:
 - **`appearance.conf`**: no gaps. **`input.conf`**: natural trackpad scrolling, and
   two-finger click = right click (`trackpad_click_method = 2`; the default only
   right-clicks in the bottom-right corner).
-- **`monitors.conf`**: `install.sh` symlinks in `monitors-pixelbook.conf` (1.5x) or
-  `monitors-motile.conf` (1x) by DMI product name, since every laptop's internal panel
-  is named eDP-1 regardless of model; unmatched hardware gets the hardware-free
+- **`monitors.conf`**: `install.sh` symlinks in `monitors-pixelbook.conf` (1.5x),
+  `monitors-motile.conf` (1x) or `monitors-g14.conf` (1.5x) by DMI product name, since
+  every laptop's internal panel is named eDP-1 regardless of model; unmatched hardware gets the hardware-free
   `monitors.conf` template. Add a `monitors-<host>.conf` and a case in `install.sh` for
   a new machine. Display tools like wdisplays only change it until logout.
 
