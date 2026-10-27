@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Each GPU, whether it's awake, and which programs have it open (an NVIDIA card
+# can only sleep when none do). nvtop shows live load per GPU.
+
+set -euo pipefail
+
+if (($#)); then
+  echo "gpu-status takes no arguments; to switch the NVIDIA card: gpu-outputs on|off" >&2
+  exit 2
+fi
+
+# Every open file of every process, once: "/proc/PID/fd TARGET".
+open_files=$(find /proc/[0-9]*/fd -maxdepth 1 -type l -printf '%h %l\n' 2>/dev/null || true)
+
+for card in /sys/class/drm/card*; do
+  [[ $(basename "$card") =~ ^card[0-9]+$ ]] || continue
+  dev=$card/device
+  driver=$(basename "$(readlink -f "$dev/driver")")
+  name=$(lspci -s "$(basename "$(readlink -f "$dev")")" 2>/dev/null | cut -d: -f3- | sed 's/^ *//')
+  role=other
+  [[ $(cat "$dev/boot_vga" 2>/dev/null) == 1 ]] && role="main (built-in screen)"
+  connected=$(for c in "$card"-*; do
+      if [[ $(cat "$c/status" 2>/dev/null) == connected ]]; then printf '%s ' "${c##*/"$(basename "$card")"-}"; fi
+    done)
+  echo "$(basename "$card"): ${name:-$driver}"
+  echo "  $role, driver $driver, power $(cat "$dev/power/runtime_status")${connected:+, showing on $connected}"
+
+  # Programs holding it: its DRM nodes, plus /dev/nvidia* for an NVIDIA card.
+  nodes=("/dev/dri/$(basename "$card")")
+  for render in "$dev"/drm/renderD*; do
+    if [[ -e $render ]]; then nodes+=("/dev/dri/${render##*/}"); fi
+  done
+  if [[ $driver == nvidia ]]; then nodes+=(/dev/nvidia[0-9]*); fi
+  holders=$(awk -v nodes="${nodes[*]}" '
+      BEGIN { n = split(nodes, list, " "); for (i = 1; i <= n; i++) want[list[i]] = 1 }
+      $2 in want { split($1, path, "/"); print path[3] }' <<< "$open_files" |
+    sort -un | while read -r pid; do echo "$(cat "/proc/$pid/comm" 2>/dev/null) ($pid)"; done | sort -u | tr '\n' ' ')
+  echo "  open in: ${holders:-nothing}"
+done
+
+if [[ -e /dev/dri/other-gpu || -x /usr/local/sbin/dgpu-power ]]; then gpu-outputs; fi

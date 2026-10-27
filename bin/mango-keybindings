@@ -30,7 +30,7 @@ KEYS = {
 
 BIND_RE = re.compile(r"^(\w*bind\w*)\s*=\s*(.+)$")
 DESC_RE = re.compile(r'\s#\s*"([^"]*)"\s*$')
-SOURCE_RE = re.compile(r"^source(?:-optional)?\s*=\s*(.+)$")
+SOURCE_RE = re.compile(r"^source(?:[-_]optional)?\s*=\s*(.+)$")
 
 
 def key_label(key):

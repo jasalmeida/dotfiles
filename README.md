@@ -19,7 +19,8 @@ password for the disk encryption. Then, unattended:
   `@srv`, `@cache`, `@tmp` and `@log`, and Limine with btrfs snapshots in its boot menu
 - picks CachyOS's repos for the CPU (`x86-64-v4` or `-v3`, else generic), the CPU's
   microcode, and the GPU drivers (`chwd`)
-- installs everything in [`packages.txt`](packages.txt) (no Firefox, no SDDM; Chromium
+- installs everything in [`packages.txt`](packages.txt), plus
+  [`packages-asus.txt`](packages-asus.txt) on an ASUS laptop (no Firefox, no SDDM; Chromium
   and Claude Code are in)
 - creates your account (fish, sudo through `wheel`; root is locked), sets the timezone
   (`America/New_York`), locale and keymap at the top of `setup.sh`
@@ -63,9 +64,10 @@ stream the image straight onto it:
 
 ## On an existing CachyOS install
 
-Install the packages in `packages.txt`, then run `./install.sh`. It links everything into
-place (existing files are kept as `*.bak`), copies in Noctalia's settings, installs the
-Pixelbook keyboard fix on a Pixelbook, and installs the greetd login files through sudo.
+Install the packages in `packages.txt` (and `packages-asus.txt` on an ASUS laptop), then
+run `./install.sh`. It links everything into place (existing files are kept as `*.bak`),
+copies in Noctalia's settings, installs the Pixelbook keyboard fix on a Pixelbook, sets up
+a laptop with two GPUs (see below), and installs the greetd login files through sudo.
 Switching from SDDM to greetd stays manual (see Login).
 
 Disk encryption matters: the greetd autologin only skips the login password because the
@@ -136,6 +138,7 @@ from loading the file at all, so don't rerun it here.
   palette Noctalia rewrites on every theme or wallpaper change), monospace so columns line
   up, larger text, rounded border. Replaced fuzzel, whose scrolling snaps the selection back
   to the item under the pointer.
+- **`gpu-status`**, **`gpu-outputs`**: see Two GPUs below.
 - **`mango-workspace-menu`**: text version of the workspace overview, one rofi row per
   workspace (terminals show their directory, browsers the page title). Not bound.
 
@@ -182,6 +185,53 @@ Switching (after `install.sh` put the files in `/etc`): `sudo systemctl disable 
 
 `config/applications/` (→ `~/.local/share/applications`) adds Lock Screen, Suspend, Log Out,
 Reboot and Shut Down to the app launcher, through `noctalia msg session <action>`.
+
+## Two GPUs (`etc/udev/rules.d/61-gpu-names.rules`, `bin/gpu-*`)
+
+On a laptop with a built-in GPU plus an NVIDIA card (the G14), the NVIDIA card should be
+off until something needs it. Awake, it costs roughly 3-5 W, a quarter to a third of the
+battery's runtime. `install.sh` (system part) sets this up when it finds two GPUs:
+
+- **`61-gpu-names.rules`** names them `/dev/dri/main-gpu` (the one the firmware booted
+  on, driving the built-in screen) and `/dev/dri/other-gpu`, since the kernel's card
+  numbers can change between boots.
+- **`gpu-outputs off`** (the default) writes `~/.config/mango/cfg/gpu.conf`, which
+  `config.conf` includes with `source_optional`: `WLR_DRM_DEVICES` keeps mango on the main
+  GPU only. mango applies `env` lines before it opens the GPUs. On ASUS laptops it also
+  cuts the card's power (below). The catch: ports wired to the NVIDIA card
+  (the G14's HDMI and one USB-C port) go dark, and `prime-run` has nothing to run on.
+  **`gpu-outputs on`** before plugging a monitor in there, then log out and back in;
+  `gpu-outputs off` (and log in again) afterwards.
+- **`gpu-status`** shows each GPU, whether it's awake, what's showing on it, and which
+  programs have it open. `nvtop` shows live load per GPU.
+
+To run something on the NVIDIA card (with `gpu-outputs on`): `prime-run <app>`, or a
+launcher's "run on discrete GPU" (switcheroo-control). Apps can also pick a GPU on their
+own: Orca Slicer, under XWayland, quietly moves itself to the NVIDIA card. Check with
+`gpu-status`, not by trusting the environment you started it with.
+
+## ASUS laptops (`packages-asus.txt`, `dgpu-power`)
+
+`asusctl` and `rog-control-center`: fan and power profiles (`asusctl profile`), keyboard
+lighting, and the GPU switch (MUX). `install.sh` sets the battery charge limit to 80%
+through asusd (`asusctl battery limit 80`), which keeps it across reboots; the first run
+inside `setup.sh` can't, as asusd isn't running there, so run `install.sh` once more after
+the first boot. asusd starts from its own udev rule, only on ASUS hardware.
+
+On the G14 the NVIDIA driver can't put the card to sleep (`Runtime D3 status: Not
+supported` in `/proc/driver/nvidia/gpus/*/power`), so it idles, on, for as long as it's on
+the PCI bus. **`dgpu-power`** (`usr/local/sbin/`, root) turns it off through the firmware's
+`dgpu_disable`: it stops nvidia-powerd, takes the card off the bus (unbinding its driver),
+then cuts its power; the firmware keeps that across reboots. While mango or anything else
+has the card open it can't, so the choice is saved and **`dgpu-power.service`** applies it
+at the next boot, before the login screen. `on` works right away. `gpu-outputs` calls it
+through sudo (`off` by default, set by `install.sh`). It refuses `off` while the MUX has
+the built-in screen on the NVIDIA card; `gpu-outputs on` before switching the MUX.
+
+asusctl can flip `dgpu_disable` too, but only that: cutting power while the driver still
+has the card can freeze the session. supergfxctl (asus-linux, AUR) does the whole dance
+but didn't work here: it never noticed the logout it waits for (its logind check fails on
+current systemd) and stops the login manager itself.
 
 ## Pixelbook (`etc/udev/hwdb.d/`, `config/mango/cfg/pixelbook.conf`)
 

@@ -1,0 +1,8 @@
+# Added to packages.txt on ASUS laptops (setup.sh checks the DMI vendor). One per
+# line; # starts a comment.
+
+# asusd and its command line: fan and power profiles, the battery charge limit
+# (install.sh sets 80%), keyboard lighting, and the GPU switch (MUX)
+asusctl
+# Its settings window
+rog-control-center

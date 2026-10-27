@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# ASUS laptops: turn the NVIDIA card's power off or on through the firmware
+# (dgpu_disable), since its driver can't put it to sleep on the G14. Off, the
+# card is gone from the system: no HDMI (or the USB-C port wired to it), no
+# prime-run. Run as root; gpu-outputs calls it through sudo.
+#   dgpu-power off      off now if nothing has the card open, else at next boot
+#   dgpu-power on       on now (log in again for mango to use its ports)
+#   dgpu-power boot     apply the saved choice (dgpu-power.service, before the
+#                       login screen, when nothing has the card open yet)
+#   dgpu-power          the saved choice and the firmware's state
+# The steps follow supergfxctl's: off is nvidia-powerd stopped, the card taken
+# off the PCI bus (unbinding its driver), then dgpu_disable=1; the firmware keeps
+# that across reboots. Installed to /usr/local/sbin by install.sh.
+
+set -euo pipefail
+
+saved=/var/lib/dgpu-power/mode
+attrs=/sys/class/firmware-attributes/asus-armoury/attributes
+
+# asus-armoury may load after this starts at boot.
+for _ in $(seq 50); do
+  [[ -e $attrs/dgpu_disable/current_value ]] && break
+  sleep 0.1
+done
+if [[ ! -e $attrs/dgpu_disable/current_value ]]; then
+  echo "no ASUS dgpu_disable here (asus-armoury)" >&2
+  exit 1
+fi
+
+disabled() { [[ $(cat "$attrs/dgpu_disable/current_value") == 1 ]]; }
+
+nvidia_devices() {
+  local dev
+  for dev in /sys/bus/pci/devices/*; do
+    if [[ $(cat "$dev/vendor") == 0x10de ]]; then echo "$dev"; fi
+  done
+}
+
+# Programs with the card open, as "name (pid)"; not nvidia-powerd, which
+# turn_off stops first.
+holders() {
+  local dev nodes=()
+  for dev in $(nvidia_devices); do
+    for node in "$dev"/drm/card* "$dev"/drm/renderD*; do
+      if [[ -e $node ]]; then nodes+=("/dev/dri/${node##*/}"); fi
+    done
+  done
+  for node in /dev/nvidia[0-9]* /dev/nvidiactl; do
+    if [[ -e $node ]]; then nodes+=("$node"); fi
+  done
+  ((${#nodes[@]})) || return 0
+  { fuser "${nodes[@]}" 2> /dev/null || true; } | tr -s ' ' '\n' | { grep -E '^[0-9]+$' || true; } |
+    sort -un | while read -r pid; do
+      comm=$(cat "/proc/$pid/comm" 2> /dev/null || true)
+      if [[ $comm != nvidia-powerd ]]; then echo -n "$comm ($pid) "; fi
+    done
+}
+
+turn_off() {
+  if disabled; then return; fi
+  if [[ $(cat "$attrs/gpu_mux_mode/current_value") == 0 ]]; then
+    echo "The GPU switch (MUX) has the built-in screen on the NVIDIA card; leaving it on." >&2
+    return 1
+  fi
+  local busy
+  busy=$(holders)
+  if [[ -n $busy ]]; then
+    echo "The NVIDIA card is open in: $busy"
+    echo "It turns off at the next boot."
+    return
+  fi
+  systemctl stop nvidia-powerd.service 2> /dev/null || true
+  # Its audio function first, then the card itself.
+  for dev in $(nvidia_devices | sort -r); do
+    echo 1 > "$dev/remove"
+  done
+  echo 1 > "$attrs/dgpu_disable/current_value"
+  echo "NVIDIA card off."
+}
+
+turn_on() {
+  if ! disabled; then return; fi
+  echo 0 > "$attrs/dgpu_disable/current_value"
+  echo 1 > /sys/bus/pci/rescan
+  if systemctl -q is-enabled nvidia-powerd.service 2> /dev/null; then
+    systemctl start nvidia-powerd.service || true
+  fi
+  echo "NVIDIA card on."
+}
+
+case ${1:-} in
+  off | on)
+    mkdir -p "$(dirname "$saved")"
+    echo "$1" > "$saved"
+    "turn_$1"
+    ;;
+  boot)
+    case $(cat "$saved" 2> /dev/null) in
+      off) turn_off ;;
+      on) turn_on ;;
+    esac
+    ;;
+  '')
+    state=on
+    if disabled; then state=off; fi
+    echo "dgpu-power $(cat "$saved" 2> /dev/null || echo unset) (NVIDIA card $state)"
+    ;;
+  *)
+    echo "usage: dgpu-power [on|off]" >&2
+    exit 2
+    ;;
+esac

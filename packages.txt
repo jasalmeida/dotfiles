@@ -138,6 +138,10 @@ accountsservice
 xdg-user-dirs
 xdg-utils
 mesa-utils
+# Two GPUs: which is in use (nvtop, also bin/gpu-status), and launchers' "run on
+# the discrete GPU" (switcheroo-control)
+nvtop
+switcheroo-control
 
 # Fonts
 noto-fonts

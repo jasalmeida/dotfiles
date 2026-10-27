@@ -9,6 +9,16 @@ set -euo pipefail
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 dmi_product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)
+dmi_vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)
+
+# A laptop with two GPUs (built-in plus NVIDIA): more than one display device.
+two_gpus() {
+  local vga count=0
+  for vga in /sys/class/drm/card*/device/boot_vga; do
+    if [[ $vga =~ /card[0-9]+/device/ ]]; then count=$((count + 1)); fi
+  done
+  ((count > 1))
+}
 
 link() {
   local src=$1 dest=$2
@@ -117,6 +127,52 @@ system_files() {
     fi
   fi
 
+  # Two GPUs: names for them (/dev/dri/main-gpu, other-gpu), then mango set to
+  # drive only the main one so the NVIDIA card can be off (gpu-outputs switches).
+  # gpu.conf is written only once the names exist: mango won't start without them.
+  if two_gpus; then
+    rules=/etc/udev/rules.d/61-gpu-names.rules
+    if ! cmp -s "$repo/etc/udev/rules.d/61-gpu-names.rules" "$rules"; then
+      install -Dm644 "$repo/etc/udev/rules.d/61-gpu-names.rules" "$rules"
+      systemd-detect-virt -q --chroot || { udevadm control --reload && udevadm trigger --subsystem-match=drm; }
+      echo "installed $rules"
+    fi
+    local home gpu_conf
+    home=$(getent passwd "$user" | cut -d: -f6)
+    gpu_conf=$home/.config/mango/cfg/gpu.conf
+    if [[ ! -e $gpu_conf ]]; then
+      runuser -u "$user" -- "$repo/bin/gpu-outputs" off > /dev/null
+      echo "wrote $gpu_conf (gpu-outputs off)"
+    fi
+  fi
+
+  # ASUS laptops with an NVIDIA card: dgpu-power turns it off through the firmware
+  # (its driver can't put it to sleep), off by default; dgpu-power.service applies
+  # that at boot. Installed after gpu.conf above, so that gpu-outputs off didn't
+  # call it (through sudo) already.
+  if [[ -e /sys/class/firmware-attributes/asus-armoury/attributes/dgpu_disable ]]; then
+    local f
+    for f in usr/local/sbin/dgpu-power etc/systemd/system/dgpu-power.service; do
+      if ! cmp -s "$repo/$f" "/$f"; then
+        install -Dm"$([[ $f == */sbin/* ]] && echo 755 || echo 644)" "$repo/$f" "/$f"
+        echo "installed /$f"
+      fi
+    done
+    systemctl -q is-enabled dgpu-power.service 2> /dev/null || systemctl enable dgpu-power.service
+    if [[ ! -e /var/lib/dgpu-power/mode ]]; then
+      install -Dm644 /dev/stdin /var/lib/dgpu-power/mode <<< off
+      echo "NVIDIA card set to turn off at the next boot (gpu-outputs on to keep it)"
+    fi
+  fi
+
+  # ASUS laptops: asusd keeps the battery from charging past 80%. It runs from
+  # udev and isn't up inside setup.sh's chroot; the next run of install.sh sets it.
+  if [[ $dmi_vendor == ASUS* ]] && command -v asusctl > /dev/null; then
+    if ! asusctl battery limit 80 > /dev/null 2>&1; then
+      echo "couldn't set the battery charge limit (asusd not running yet?)"
+    fi
+  fi
+
   # Login: Noctalia's greeter under greetd, autologin into mango (as $user) after
   # the disk passphrase. Only the files are installed; setup.sh switches a new
   # machine to greetd, an existing one is switched by hand (see README).
@@ -133,6 +189,11 @@ system_files() {
     fi
   fi
 }
+
+if [[ $dmi_vendor == ASUS* && ${1:-} != --system ]] && ! command -v asusctl > /dev/null; then
+  echo "ASUS laptop: install packages-asus.txt (setup.sh does on a new machine):"
+  echo "  sudo pacman -S --needed \$(sed 's/#.*//' $repo/packages-asus.txt)"
+fi
 
 case ${1:-} in
   --system) system_files "${2:?usage: install.sh --system USER}" ;;

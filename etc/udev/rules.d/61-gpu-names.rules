@@ -1,0 +1,7 @@
+# Laptops with two GPUs: stable names for them, whatever order the kernel numbers
+# them in. /dev/dri/main-gpu is the one the firmware booted on, which drives the
+# built-in screen; /dev/dri/other-gpu is the other (the NVIDIA card on a hybrid
+# laptop). mango's gpu.conf, written by gpu-outputs, uses them. install.sh copies
+# this to /etc only on machines with two GPUs.
+SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ENV{DEVTYPE}=="drm_minor", ATTRS{boot_vga}=="1", SYMLINK+="dri/main-gpu"
+SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ENV{DEVTYPE}=="drm_minor", ATTRS{boot_vga}=="0", SYMLINK+="dri/other-gpu"

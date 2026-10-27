@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# Laptops with two GPUs: whether the second one (the NVIDIA card) is in use.
+#   gpu-outputs off   only the GPU wired to the built-in screen (the default), so
+#                     the other one can be off or asleep
+#   gpu-outputs on    both, for a monitor on a port wired to the other GPU (the
+#                     G14's HDMI port and one USB-C port), or for prime-run
+#   gpu-outputs       which one is set
+# Writes ~/.config/mango/cfg/gpu.conf (machine state, not part of the repo), which
+# mango reads when it starts. On ASUS laptops, whose NVIDIA driver can't put the
+# card to sleep, it also turns the card's power off or on (dgpu-power, through
+# sudo). Log out and back in after either.
+
+set -euo pipefail
+
+conf=$HOME/.config/mango/cfg/gpu.conf
+
+switch=
+if [[ -x /usr/local/sbin/dgpu-power && -e /sys/class/firmware-attributes/asus-armoury/attributes/dgpu_disable ]]; then
+  switch=/usr/local/sbin/dgpu-power
+fi
+
+count=0
+for vga in /sys/class/drm/card*/device/boot_vga; do
+  if [[ $vga =~ /card[0-9]+/device/ ]]; then count=$((count + 1)); fi
+done
+# With the card switched off, it's gone from the system: one GPU left.
+if ((count < 2)) && [[ -z $switch ]]; then
+  echo "Only one GPU here, so there's nothing to switch."
+  exit 0
+fi
+
+current() {
+  grep -q '^env = WLR_DRM_DEVICES' "$conf" 2>/dev/null && echo off || echo on
+}
+
+case ${1:-} in
+  off)
+    mkdir -p "$(dirname "$conf")"
+    cat > "$conf" << 'EOF'
+# Written by gpu-outputs: mango drives only the GPU wired to the built-in screen,
+# so the other one can be off. `gpu-outputs on` (and log in again) for its ports.
+env = WLR_DRM_DEVICES,/dev/dri/main-gpu
+EOF
+    if [[ -n $switch ]]; then sudo "$switch" off; fi
+    ;;
+  on)
+    if [[ -n $switch ]]; then sudo "$switch" on; fi
+    mkdir -p "$(dirname "$conf")"
+    cat > "$conf" << 'EOF'
+# Written by gpu-outputs: mango drives both GPUs, so monitors work on every port
+# and the second GPU stays on. `gpu-outputs off` (and log in again) to turn it off.
+EOF
+    ;;
+  '')
+    if [[ -e /dev/dri/other-gpu ]]; then
+      card=$(basename "$(readlink -f /dev/dri/other-gpu)")
+      state=$(cat "/sys/class/drm/$card/device/power/runtime_status")
+    elif [[ -n $switch ]]; then
+      state="switched off"
+    else
+      state="no /dev/dri/other-gpu: install.sh puts its udev rule in place"
+    fi
+    echo "gpu-outputs $(current) (other GPU: $state)"
+    if [[ -n $switch ]]; then "$switch"; fi
+    exit 0
+    ;;
+  *)
+    echo "usage: gpu-outputs [on|off]" >&2
+    exit 2
+    ;;
+esac
+
+if pgrep -x mango > /dev/null; then
+  echo "gpu-outputs $1: log out and back in for it to take effect."
+fi

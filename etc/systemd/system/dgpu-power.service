@@ -1,0 +1,17 @@
+# ASUS laptops: turns the NVIDIA card off at boot if `dgpu-power off` was chosen,
+# before the login screen or nvidia-powerd can open it. Installed and enabled by
+# install.sh.
+# After drm-module-load.target: CachyOS's drm-awaiter waits there for the driver
+# of every GPU it found at boot, NVIDIA's included, and drops to emergency mode
+# if one never loads, as it wouldn't with the card already taken away.
+[Unit]
+Description=NVIDIA card power (dgpu-power)
+After=systemd-udev-trigger.service systemd-modules-load.service drm-module-load.target
+Before=display-manager.service nvidia-powerd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/dgpu-power boot
+
+[Install]
+WantedBy=multi-user.target

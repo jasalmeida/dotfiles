@@ -289,6 +289,9 @@ EOF
 
 grep -q GenuineIntel /proc/cpuinfo && ucode=intel-ucode || ucode=amd-ucode
 mapfile -t packages < <(sed 's/#.*//; /^\s*$/d' "$src/packages.txt")
+if [[ $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null) == ASUS* ]]; then
+  mapfile -t -O "${#packages[@]}" packages < <(sed 's/#.*//; /^\s*$/d' "$src/packages-asus.txt")
+fi
 
 step "Installing ${#packages[@]} packages"
 in_target pacman -Syu --noconfirm --needed "${packages[@]}" "$ucode"
@@ -316,7 +319,8 @@ step "Snapshots"
 step "Services"
 for unit in NetworkManager bluetooth ufw greetd systemd-resolved systemd-timesyncd \
     systemd-oomd avahi-daemon ananicy-cpp limine-snapper-sync fstrim.timer \
-    snapper-cleanup.timer cachyos-rate-mirrors.timer cachyos-iw-set-regdomain.path; do
+    snapper-cleanup.timer cachyos-rate-mirrors.timer cachyos-iw-set-regdomain.path \
+    switcheroo-control; do
   in_target systemctl enable "$unit" 2> /dev/null || echo "  (no $unit, skipped)"
 done
 ln -sf /run/systemd/resolve/stub-resolv.conf "$mnt/etc/resolv.conf"
