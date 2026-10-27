@@ -33,12 +33,12 @@ thickness = 40
 path = "/usr/share/wallpapers/cachyos-wallpapers/cachysurf4.jpg"
 
 [idle]
-behavior_order = [ "lock", "screen-off", "lock-and-suspend" ]
+behavior_order = [ "lock", "Screen-off", "lock-and-suspend" ]
 
     [idle.behavior.Screen-off]
-    action = "command"
+    action = "screen_off"
     enabled = true
-    timeout = 300.0
+    timeout = 630.0
 
     [idle.behavior.lock]
     action = "lock"
@@ -47,7 +47,7 @@ behavior_order = [ "lock", "screen-off", "lock-and-suspend" ]
 
     [idle.behavior.lock-and-suspend]
     action = "suspend"
-    enabled = true
+    enabled = false
     lock_before_suspend = false
     timeout = 900.0
 

@@ -148,9 +148,10 @@ is accepted and silently does nothing.
   `~/.local/state/noctalia/`, what the settings window saves; it overrides `config.toml`).
   Copied, not linked, since Noctalia rewrites them. After changing settings, copy them
   back: `cp ~/.config/noctalia/config.toml ~/.local/state/noctalia/settings.toml config/noctalia/`.
-  They hold the bar layout, launcher default view (All), idle (lock at 10 min, lock &
-  suspend at 15), theme, wallpaper folder, and the enabled plugins, including Arch Updater
-  (`yuuto/arch-updater`) for the updates button.
+  They hold the bar layout, launcher default view (All), idle (lock at 10 min, screen off
+  at 10½, and no sleep, so a key brings the lock screen back at once), theme, wallpaper
+  folder, and the enabled plugins, including Arch Updater (`yuuto/arch-updater`) for the
+  updates button.
 - **`plugins/`**: `config.toml` registers this folder as a plugin source of kind `path`.
 
 - **`workspace-hud`**: Super+., an [aerohud](https://github.com/nikhilmwarrier/aerohud)-style

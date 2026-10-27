@@ -19,12 +19,12 @@ end = [
 start = [ "workspaces", "Spacer", "launcher", "Spacer_2", "active_window" ]
 
 [idle]
-behavior_order = [ "lock", "lock-and-suspend", "Screen-off" ]
+behavior_order = [ "lock", "Screen-off", "lock-and-suspend" ]
 
     [idle.behavior.Screen-off]
-    action = "command"
+    action = "screen_off"
     enabled = true
-    timeout = 300.0
+    timeout = 630.0
 
     [idle.behavior.lock]
     action = "lock"
@@ -33,7 +33,7 @@ behavior_order = [ "lock", "lock-and-suspend", "Screen-off" ]
 
     [idle.behavior.lock-and-suspend]
     action = "lock_and_suspend"
-    enabled = true
+    enabled = false
     timeout = 900.0
 
 [lockscreen_widgets]
