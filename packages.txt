@@ -163,8 +163,9 @@ libgsf
 libopenraw
 poppler-glib
 
-# Apps
+# Apps (ark: Dolphin's zip handling, extract/compress menus)
 alacritty
+ark
 chromium
 claude-code
 git
@@ -191,6 +192,7 @@ rsync
 shelly
 unrar
 unzip
+7zip
 wget
 python-defusedxml
 python-packaging
